@@ -1,7 +1,7 @@
 import * as ImagePicker from "expo-image-picker";
-import * as ExpoLinking from "expo-linking";
+// import * as ExpoLinking from "expo-linking"; // TODO: 認証復活時にコメントを戻す（シェア機能）
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Image, Linking, Modal, ScrollView, Share, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Alert, Image, Linking, Modal, ScrollView, /*Share,*/ StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../lib/auth";
 import type { ClothItem, WearRecord } from "../lib/db";
@@ -28,21 +28,28 @@ async function fetchSuggestedCoords(clothes:ClothItem[],tpo:string,weather:Weath
     :'';
   const weatherLabel=weather?`${weather.emoji} ${weather.temp}°C`:'';
   const langInstr=lang==='en'?'Write the "comment" field in English.':'';
-  const res=await fetch('https://api.anthropic.com/v1/messages',{
-    method:'POST',
-    headers:{'Content-Type':'application/json','x-api-key':key!,'anthropic-version':'2023-06-01'},
-    body:JSON.stringify({
-      model:'claude-haiku-4-5-20251001',
-      max_tokens:1024,
-      messages:[{role:'user',content:`以下の服のリストからTPO「${scene}」に合うコーディネートを2通り提案してください。${weatherCtx}${langInstr}\n\n服のリスト:\n${list}\n\n以下のJSON配列のみを返してください（説明文は不要）:\n[{"id":"1","tpo":"${scene}","weather":"${weatherLabel}","ids":["服のIDを3〜4個"],"comment":"コーデの説明50文字以内","score":90},{"id":"2","tpo":"${scene}","weather":"${weatherLabel}","ids":["服のIDを2〜3個"],"comment":"コーデの説明50文字以内","score":85}]`}],
-    }),
-  });
-  if(!res.ok)throw new Error(`API error: ${res.status}`);
-  const data=await res.json();
-  const text:string=data.content[0].text;
-  const match=text.match(/\[[\s\S]*\]/);
-  if(!match)throw new Error('Invalid response');
-  return JSON.parse(match[0]) as CoordItem[];
+  const ctrl=new AbortController();
+  const timer=setTimeout(()=>ctrl.abort(),30000);
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':key!,'anthropic-version':'2023-06-01'},
+      body:JSON.stringify({
+        model:'claude-haiku-4-5-20251001',
+        max_tokens:1024,
+        messages:[{role:'user',content:`以下の服のリストからTPO「${scene}」に合うコーディネートを2通り提案してください。${weatherCtx}${langInstr}\n\n服のリスト:\n${list}\n\n以下のJSON配列のみを返してください（説明文は不要）:\n[{"id":"1","tpo":"${scene}","weather":"${weatherLabel}","ids":["服のIDを3〜4個"],"comment":"コーデの説明50文字以内","score":90},{"id":"2","tpo":"${scene}","weather":"${weatherLabel}","ids":["服のIDを2〜3個"],"comment":"コーデの説明50文字以内","score":85}]`}],
+      }),
+      signal:ctrl.signal,
+    });
+    if(!res.ok)throw new Error(`API error: ${res.status}`);
+    const data=await res.json();
+    const text:string=data.content[0].text;
+    const match=text.match(/\[[\s\S]*\]/);
+    if(!match)throw new Error('Invalid response');
+    return JSON.parse(match[0]) as CoordItem[];
+  }finally{
+    clearTimeout(timer);
+  }
 }
 
 async function requestAndPick(cam:boolean,t:T):Promise<{uri:string;base64:string;mimeType:string}|null>{
@@ -73,30 +80,37 @@ async function fetchNameSuggestions(base64:string,mimeType:string,lang:Lang):Pro
   const prompt=lang==='en'
     ?'Look at this clothing item and suggest 3 short names (max 10 chars each). Return only a JSON array, e.g. ["White Shirt","Cotton Top","Basic Tee"]'
     :'この服を見て、短い名前を3つ提案してください（各10文字以内）。JSON配列のみ返してください。例：["白シャツ","コットンT","ベーシック"]';
-  const res=await fetch('https://api.anthropic.com/v1/messages',{
-    method:'POST',
-    headers:{'Content-Type':'application/json','x-api-key':key!,'anthropic-version':'2023-06-01'},
-    body:JSON.stringify({
-      model:'claude-haiku-4-5-20251001',
-      max_tokens:128,
-      messages:[{role:'user',content:[
-        {type:'image',source:{type:'base64',media_type:mimeType,data:base64}},
-        {type:'text',text:prompt},
-      ]}],
-    }),
-  });
-  if(!res.ok)throw new Error(`API error: ${res.status}`);
-  const data=await res.json();
-  const text:string=data.content[0].text;
-  const match=text.match(/\[[\s\S]*\]/);
-  if(!match)throw new Error('Invalid response');
-  return(JSON.parse(match[0])as string[]).slice(0,3);
+  const ctrl=new AbortController();
+  const timer=setTimeout(()=>ctrl.abort(),20000);
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':key!,'anthropic-version':'2023-06-01'},
+      body:JSON.stringify({
+        model:'claude-haiku-4-5-20251001',
+        max_tokens:128,
+        messages:[{role:'user',content:[
+          {type:'image',source:{type:'base64',media_type:mimeType,data:base64}},
+          {type:'text',text:prompt},
+        ]}],
+      }),
+      signal:ctrl.signal,
+    });
+    if(!res.ok)throw new Error(`API error: ${res.status}`);
+    const data=await res.json();
+    const text:string=data.content[0].text;
+    const match=text.match(/\[[\s\S]*\]/);
+    if(!match)throw new Error('Invalid response');
+    return(JSON.parse(match[0])as string[]).slice(0,3);
+  }finally{
+    clearTimeout(timer);
+  }
 }
 
 export default function App(){
   const{t}=useLang();
-  const{user}=useAuth();
-  const uid=user?.uid??'test-user'; // TODO: 認証復活時に削除
+  // const{user}=useAuth(); // TODO: 認証復活時にコメントを戻す
+  const uid='test-user';
   const TABS_I18N=useMemo(()=>[{label:t.tabCloset,icon:"🗂️"},{label:t.tabSuggest,icon:"✨"},{label:t.tabHistory,icon:"📅"},{label:t.tabSettings,icon:"⚙️"}],[t]);
   const[tab,setTab]=useState(0);
   const[clothes,setClothes]=useState<ClothItem[]>([]);
@@ -129,11 +143,11 @@ export default function App(){
       .finally(()=>setWeatherLoading(false));
   },[]);
 
-  if(false&&(!user||loading))return( // TODO: 認証復活時に条件を戻す
-    <SafeAreaView style={[s.safe,{justifyContent:"center",alignItems:"center"}]}>
-      <ActivityIndicator size="large" color={BRAND}/>
-    </SafeAreaView>
-  );
+  // if(!user||loading)return( // TODO: 認証復活時にコメントを戻す
+  //   <SafeAreaView style={[s.safe,{justifyContent:"center",alignItems:"center"}]}>
+  //     <ActivityIndicator size="large" color={BRAND}/>
+  //   </SafeAreaView>
+  // );
 
   return(
     <SafeAreaView style={s.safe}>
@@ -158,8 +172,8 @@ export default function App(){
 
 function ClosetScreen({clothes}:{clothes:ClothItem[]}){
   const{t,lang}=useLang();
-  const{user}=useAuth();
-  const uid=user?.uid??'test-user'; // TODO: 認証復活時に削除
+  // const{user}=useAuth(); // TODO: 認証復活時にコメントを戻す
+  const uid='test-user';
   const[cat,setCat]=useState(CATS[0]);
   const[modal,setModal]=useState(false);
   const[nameModal,setNameModal]=useState(false);
@@ -424,8 +438,8 @@ function SuggestScreen({clothes,clothesMap,weather,weatherLoading}:{
 
 function HistoryScreen({clothes,clothesMap}:{clothes:ClothItem[];clothesMap:Map<string,ClothItem>}){
   const{t}=useLang();
-  const{user}=useAuth();
-  const uid=user?.uid??'test-user'; // TODO: 認証復活時に削除
+  // const{user}=useAuth(); // TODO: 認証復活時にコメントを戻す
+  const uid='test-user';
   const[history,setHistory]=useState<WearRecord[]>([]);
   const[recordModal,setRecordModal]=useState(false);
   const[selIds,setSelIds]=useState<string[]>([]);
@@ -612,7 +626,8 @@ function HistoryScreen({clothes,clothesMap}:{clothes:ClothItem[];clothesMap:Map<
 
 function SettingsScreen(){
   const{t}=useLang();
-  const{user,signOut}=useAuth();
+  const{user}=useAuth();
+  // const signOut = useAuth().signOut; // TODO: 認証復活時にコメントを戻す
   const[settings,setSettings]=useState<Record<SettingKey,boolean>>({
     weatherSync:true,
     considerHistory:true,
@@ -628,12 +643,12 @@ function SettingsScreen(){
   const avatarInitial=(user?.displayName??user?.email??'?')[0].toUpperCase();
   const displayName=user?.displayName??user?.email??'';
 
-  const handleShare=async()=>{
-    const uid=user?.uid;
-    if(!uid)return;
-    const url=ExpoLinking.createURL('shared/'+uid);
-    await Share.share({message:url});
-  };
+  // const handleShare=async()=>{ // TODO: 認証復活時にコメントを戻す
+  //   const uid=user?.uid;
+  //   if(!uid)return;
+  //   const url=ExpoLinking.createURL('shared/'+uid);
+  //   await Share.share({message:url});
+  // };
 
   return(
     <ScrollView style={{flex:1,backgroundColor:"#FAFAF7"}}>
@@ -650,6 +665,7 @@ function SettingsScreen(){
           </View>
         </View>
       </View>
+      {/* TODO: 認証復活時に戻す（シェア機能）
       <View style={[s.settCard,{marginBottom:16}]}>
         <TouchableOpacity style={s.shareRow} onPress={handleShare}>
           <Text style={{fontSize:20}}>🔗</Text>
@@ -657,6 +673,7 @@ function SettingsScreen(){
           <Text style={{color:"#999",fontSize:18}}>›</Text>
         </TouchableOpacity>
       </View>
+      */}
       <View style={s.settCard}>
         <Text style={s.settSec}>{t.suggestSettings}</Text>
         {settingRows.map(([key,lb,sub])=>(
@@ -671,9 +688,11 @@ function SettingsScreen(){
           </View>
         ))}
       </View>
+      {/* TODO: 認証復活時に戻す（サインアウト）
       <TouchableOpacity style={[s.settCard,{marginTop:16,marginBottom:20,alignItems:"center"}]} onPress={signOut}>
         <Text style={{color:"#E53935",fontSize:14,fontWeight:"600"}}>{t.signOut}</Text>
       </TouchableOpacity>
+      */}
     </ScrollView>
   );
 }

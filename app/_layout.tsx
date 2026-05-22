@@ -9,23 +9,24 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const segments = useSegments();
 
-  // useEffect(() => {
-  //   if (loading) return;
-  //   const isPublic = segments[0] === 'login' || segments[0] === 'shared';
-  //   if (!user && !isPublic) {
-  //     router.replace('/login');
-  //   } else if (user && segments[0] === 'login') {
-  //     router.replace('/');
-  //   }
-  // }, [user, loading, segments]);
+  useEffect(() => {
+    if (loading) return;
+    const isPublic = segments[0] === 'login' || segments[0] === 'shared';
 
-  // if (loading) {
-  //   return (
-  //     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FAFAF7' }}>
-  //       <ActivityIndicator size="large" color="#1a0a2e" />
-  //     </View>
-  //   );
-  // }
+    if (!user && !isPublic) {
+      router.replace('/login');
+    } else if (user && segments[0] === 'login') {
+      router.replace('/');
+    }
+  }, [user, loading, segments]);
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FAFAF7' }}>
+        <ActivityIndicator size="large" color="#1a0a2e" />
+      </View>
+    );
+  }
 
   return <>{children}</>;
 }

@@ -40,9 +40,11 @@ function historyCol(uid: string) {
 }
 
 export function subscribeToClothes(uid: string, cb: (items: ClothItem[]) => void): () => void {
-  return onSnapshot(clothesCol(uid), snap => {
-    cb(snap.docs.map(d => ({ id: d.id, ...d.data() } as ClothItem)));
-  });
+  return onSnapshot(
+    clothesCol(uid),
+    snap => { cb(snap.docs.map(d => ({ id: d.id, ...d.data() } as ClothItem))); },
+    () => {}
+  );
 }
 
 export async function addCloth(uid: string, item: Omit<ClothItem, 'id'>): Promise<void> {
@@ -51,9 +53,11 @@ export async function addCloth(uid: string, item: Omit<ClothItem, 'id'>): Promis
 
 export function subscribeToWearHistory(uid: string, cb: (records: WearRecord[]) => void): () => void {
   const q = query(historyCol(uid), orderBy('createdAt', 'desc'));
-  return onSnapshot(q, snap => {
-    cb(snap.docs.map(d => ({ id: d.id, ...d.data() } as WearRecord)));
-  });
+  return onSnapshot(
+    q,
+    snap => { cb(snap.docs.map(d => ({ id: d.id, ...d.data() } as WearRecord))); },
+    () => {}
+  );
 }
 
 export async function deleteCloth(uid: string, id: string): Promise<void> {

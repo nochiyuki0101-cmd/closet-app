@@ -63,7 +63,8 @@
           "photosPermission": "服の写真をアルバムから選ぶためにアクセスを許可してください",
           "cameraPermission": "服の写真を撮るためにカメラへのアクセスを許可してください"
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
