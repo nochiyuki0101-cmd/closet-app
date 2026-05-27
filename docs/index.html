@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Closet AI — AIがあなたのコーデを提案する、スマートなクローゼット</title>
+  <meta name="description" content="服を撮るだけ。AIが名前・カテゴリ・色・季節を自動認識。今日の天気に合ったコーデをAIが毎日提案します。">
+
+  <!-- OGP / SNS用 -->
+  <meta property="og:title" content="Closet AI — AIがあなたのコーデを提案">
+  <meta property="og:description" content="服を撮るだけ。AIが自動解析して、今日の天気に合ったコーデを提案します。">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://nochiyuki0101-cmd.github.io/closet-app/">
+  <meta property="og:image" content="https://nochiyuki0101-cmd.github.io/closet-app/og.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Closet AI — AIがあなたのコーデを提案">
+  <meta name="twitter:description" content="服を撮るだけ。AIが自動解析して、今日の天気に合ったコーデを提案します。">
+  <meta name="twitter:image" content="https://nochiyuki0101-cmd.github.io/closet-app/og.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --brand: #1a0a2e;
+      --brand-light: #2d1054;
+      --accent: #8b5cf6;
+      --accent-bright: #a78bfa;
+      --bg: #fafaf7;
+      --text: #1a1a1a;
+      --muted: #666;
+      --border: #e8e8e0;
+      --card: #ffffff;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Noto Sans JP', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+      overflow-x: hidden;
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 32px;
+      background: rgba(26, 10, 46, 0.92);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+    .nav-logo {
+      font-size: 18px; font-weight: 700; color: #fff; letter-spacing: 0.5px;
+      text-decoration: none;
+    }
+    .nav-logo span { color: var(--accent-bright); }
+    .nav-cta {
+      background: var(--accent); color: #fff;
+      border: none; border-radius: 24px;
+      padding: 10px 24px; font-size: 13px; font-weight: 600;
+      cursor: pointer; text-decoration: none;
+      transition: background 0.2s, transform 0.15s;
+    }
+    .nav-cta:hover { background: #7c3aed; transform: translateY(-1px); }
+
+    /* ── HERO ── */
+    .hero {
+      min-height: 100vh;
+      background: linear-gradient(135deg, var(--brand) 0%, #2d1054 50%, #1e0a3c 100%);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 120px 24px 80px;
+      text-align: center;
+      position: relative; overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse at 70% 40%, rgba(139,92,246,0.18) 0%, transparent 60%),
+                  radial-gradient(ellipse at 20% 80%, rgba(139,92,246,0.1) 0%, transparent 50%);
+      pointer-events: none;
+    }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(139,92,246,0.2); border: 1px solid rgba(139,92,246,0.4);
+      border-radius: 24px; padding: 6px 16px;
+      font-size: 12px; color: var(--accent-bright); font-weight: 500;
+      margin-bottom: 24px; letter-spacing: 0.5px;
+    }
+    .hero-badge::before { content: '✦'; font-size: 10px; }
+    .hero h1 {
+      font-size: clamp(36px, 7vw, 68px);
+      font-weight: 700; color: #fff;
+      line-height: 1.2; letter-spacing: -1px;
+      margin-bottom: 20px;
+    }
+    .hero h1 em { color: var(--accent-bright); font-style: normal; }
+    .hero p {
+      font-size: clamp(15px, 2.5vw, 18px);
+      color: rgba(255,255,255,0.65);
+      max-width: 520px; margin: 0 auto 40px;
+      font-weight: 300;
+    }
+    .hero-btns {
+      display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;
+      margin-bottom: 64px;
+    }
+    .btn-primary {
+      background: var(--accent); color: #fff;
+      border: none; border-radius: 32px;
+      padding: 16px 36px; font-size: 15px; font-weight: 600;
+      cursor: pointer; text-decoration: none;
+      transition: all 0.2s; display: inline-block;
+      box-shadow: 0 8px 32px rgba(139,92,246,0.4);
+    }
+    .btn-primary:hover { background: #7c3aed; transform: translateY(-2px); box-shadow: 0 12px 40px rgba(139,92,246,0.5); }
+    .btn-secondary {
+      background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.8);
+      border: 1.5px solid rgba(255,255,255,0.2); border-radius: 32px;
+      padding: 16px 36px; font-size: 15px; font-weight: 500;
+      cursor: pointer; text-decoration: none;
+      transition: all 0.2s; display: inline-block;
+    }
+    .btn-secondary:hover { background: rgba(255,255,255,0.14); }
+
+    /* ── PHONE MOCKUP ── */
+    .phone-wrap {
+      position: relative; display: inline-block;
+    }
+    .phone {
+      width: 240px; height: 500px;
+      background: #0d0618;
+      border-radius: 44px;
+      border: 2px solid rgba(255,255,255,0.12);
+      box-shadow: 0 40px 120px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.05),
+                  inset 0 0 0 1px rgba(255,255,255,0.04);
+      overflow: hidden;
+      position: relative;
+    }
+    .phone-notch {
+      position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+      width: 80px; height: 22px;
+      background: #0d0618; border-radius: 12px; z-index: 10;
+    }
+    .phone-screen {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+    }
+    /* Simulated app UI inside phone */
+    .sim-header {
+      background: var(--brand);
+      padding: 48px 14px 12px;
+      flex-shrink: 0;
+    }
+    .sim-header-mini { font-size: 8px; color: rgba(255,255,255,0.4); letter-spacing: 1px; margin-bottom: 2px; }
+    .sim-header-title { font-size: 16px; font-weight: 600; color: #fff; }
+    .sim-weather { font-size: 8px; color: rgba(255,255,255,0.55); margin-top: 2px; }
+    .sim-tabs {
+      display: flex; gap: 6px; padding: 8px 14px 0; background: var(--brand);
+    }
+    .sim-tab {
+      padding: 4px 8px; border-radius: 12px; font-size: 8px; color: rgba(255,255,255,0.5);
+      border: 1px solid rgba(255,255,255,0.15);
+    }
+    .sim-tab.active { background: #fff; color: var(--brand); font-weight: 700; }
+    .sim-body {
+      flex: 1; background: #fafaf7; padding: 10px;
+      overflow: hidden;
+    }
+    .sim-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+    }
+    .sim-card {
+      background: #fff; border-radius: 10px; padding: 7px;
+      border: 1px solid #e8e8e0;
+    }
+    .sim-card-img {
+      width: 100%; aspect-ratio: 1; border-radius: 7px;
+      margin-bottom: 4px; display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+    }
+    .sim-card-name { font-size: 7px; font-weight: 600; color: #1a1a1a; }
+    .sim-card-sub { font-size: 6px; color: #999; }
+    .sim-card-badge {
+      display: inline-block; background: #f0ede8; border-radius: 4px;
+      padding: 1px 4px; font-size: 6px; color: #888; margin-top: 2px;
+    }
+    .sim-tabbar {
+      background: #fafaf7; border-top: 1px solid #e8e8e0;
+      display: flex; padding: 6px 4px 4px;
+      flex-shrink: 0;
+    }
+    .sim-tabbar-item {
+      flex: 1; text-align: center; font-size: 6px; color: #999;
+      display: flex; flex-direction: column; align-items: center; gap: 1px;
+    }
+    .sim-tabbar-item.active { color: var(--brand); font-weight: 700; }
+    .sim-tabbar-icon { font-size: 13px; }
+    /* floating badge on phone */
+    .phone-float {
+      position: absolute;
+      background: #fff; border-radius: 16px;
+      padding: 10px 14px; box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+      animation: float 3s ease-in-out infinite;
+    }
+    .phone-float.left { left: -100px; top: 120px; }
+    .phone-float.right { right: -110px; top: 200px; }
+    .phone-float .float-label { font-size: 10px; color: #999; }
+    .phone-float .float-value { font-size: 12px; font-weight: 700; color: var(--brand); margin-top: 2px; }
+    .phone-float .float-icon { font-size: 16px; margin-bottom: 4px; }
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+
+    /* ── STATS ── */
+    .stats {
+      background: var(--brand);
+      padding: 48px 24px;
+      display: flex; justify-content: center; gap: 0;
+    }
+    .stat-item {
+      text-align: center; padding: 0 40px;
+      border-right: 1px solid rgba(255,255,255,0.1);
+    }
+    .stat-item:last-child { border-right: none; }
+    .stat-num { font-size: 40px; font-weight: 700; color: var(--accent-bright); }
+    .stat-label { font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 4px; letter-spacing: 0.5px; }
+
+    /* ── SECTION COMMON ── */
+    section { padding: 96px 24px; }
+    .section-label {
+      font-size: 11px; font-weight: 600; color: var(--accent);
+      letter-spacing: 2px; text-transform: uppercase; margin-bottom: 12px;
+    }
+    .section-title {
+      font-size: clamp(28px, 5vw, 44px);
+      font-weight: 700; color: var(--text);
+      line-height: 1.2; letter-spacing: -0.5px;
+    }
+    .section-sub {
+      font-size: 16px; color: var(--muted); margin-top: 16px;
+      max-width: 520px; font-weight: 300;
+    }
+    .container { max-width: 1100px; margin: 0 auto; }
+
+    /* ── PROBLEM ── */
+    .problem { background: #fff; }
+    .problem-inner { max-width: 800px; margin: 0 auto; text-align: center; }
+    .problem-inner .section-title { color: var(--brand); }
+    .problem-inner .section-sub { margin: 16px auto 0; font-size: 17px; }
+    .problem-tags {
+      display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 40px;
+    }
+    .problem-tag {
+      background: #f5f3ff; color: #5b21b6;
+      border: 1px solid #ddd6fe; border-radius: 24px;
+      padding: 10px 20px; font-size: 14px; font-weight: 500;
+    }
+    .problem-arrow {
+      margin: 40px auto; text-align: center;
+      font-size: 28px; color: var(--accent);
+    }
+    .problem-solution {
+      background: linear-gradient(135deg, var(--brand), #3b1578);
+      border-radius: 24px; padding: 40px;
+      color: #fff;
+    }
+    .problem-solution h3 { font-size: 22px; font-weight: 700; margin-bottom: 12px; }
+    .problem-solution p { color: rgba(255,255,255,0.7); font-size: 15px; }
+
+    /* ── FEATURES ── */
+    .features-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 24px; margin-top: 56px;
+    }
+    .feature-card {
+      background: var(--card); border-radius: 24px;
+      padding: 36px 32px; border: 1px solid var(--border);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .feature-card:hover { transform: translateY(-4px); box-shadow: 0 16px 48px rgba(0,0,0,0.08); }
+    .feature-icon {
+      width: 56px; height: 56px; border-radius: 16px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 26px; margin-bottom: 20px;
+    }
+    .feature-icon.purple { background: #f5f3ff; }
+    .feature-icon.green  { background: #f0fdf4; }
+    .feature-icon.orange { background: #fff7ed; }
+    .feature-card h3 { font-size: 18px; font-weight: 700; margin-bottom: 10px; }
+    .feature-card p { font-size: 14px; color: var(--muted); line-height: 1.8; }
+    .feature-tag {
+      display: inline-block; margin-top: 16px;
+      background: #f5f3ff; color: #5b21b6;
+      border-radius: 20px; padding: 4px 14px;
+      font-size: 12px; font-weight: 600;
+    }
+
+    /* ── HOW IT WORKS ── */
+    .how { background: #fff; }
+    .steps {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 0; margin-top: 56px; position: relative;
+    }
+    .step {
+      text-align: center; padding: 0 24px; position: relative;
+    }
+    .step:not(:last-child)::after {
+      content: '→';
+      position: absolute; right: -12px; top: 28px;
+      font-size: 24px; color: var(--accent);
+    }
+    .step-num {
+      width: 56px; height: 56px; border-radius: 50%;
+      background: var(--brand); color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; font-weight: 700;
+      margin: 0 auto 20px;
+    }
+    .step h3 { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
+    .step p { font-size: 13px; color: var(--muted); line-height: 1.8; }
+    .step-emoji { font-size: 36px; margin-bottom: 16px; }
+
+    /* ── AI SHOWCASE ── */
+    .ai-showcase { background: var(--brand); overflow: hidden; }
+    .ai-showcase .section-title { color: #fff; }
+    .ai-showcase .section-label { color: var(--accent-bright); }
+    .ai-showcase .section-sub { color: rgba(255,255,255,0.6); }
+    .ai-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 48px; align-items: center; margin-top: 56px;
+    }
+    .ai-tags {
+      display: flex; flex-wrap: wrap; gap: 10px; margin-top: 32px;
+    }
+    .ai-tag {
+      background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 24px; padding: 8px 18px;
+      font-size: 13px; color: rgba(255,255,255,0.8); font-weight: 500;
+    }
+    .ai-tag span { color: var(--accent-bright); font-weight: 700; }
+    .ai-card {
+      background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 24px; padding: 28px; backdrop-filter: blur(8px);
+    }
+    .ai-card-title { font-size: 13px; color: rgba(255,255,255,0.4); margin-bottom: 16px; letter-spacing: 0.5px; }
+    .ai-result-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.07);
+    }
+    .ai-result-row:last-child { border-bottom: none; }
+    .ai-result-icon { font-size: 20px; width: 32px; text-align: center; }
+    .ai-result-label { font-size: 11px; color: rgba(255,255,255,0.4); }
+    .ai-result-value { font-size: 14px; color: #fff; font-weight: 600; margin-top: 2px; }
+    .ai-result-badge {
+      margin-left: auto; background: rgba(139,92,246,0.3);
+      border: 1px solid rgba(139,92,246,0.5);
+      border-radius: 12px; padding: 3px 10px;
+      font-size: 11px; color: var(--accent-bright); font-weight: 600;
+    }
+
+    /* ── CTA ── */
+    .cta {
+      background: linear-gradient(135deg, var(--brand) 0%, #3b1578 100%);
+      text-align: center; padding: 96px 24px;
+    }
+    .cta h2 { font-size: clamp(28px, 5vw, 48px); font-weight: 700; color: #fff; margin-bottom: 16px; line-height: 1.2; }
+    .cta p { font-size: 16px; color: rgba(255,255,255,0.6); margin-bottom: 40px; }
+    .cta-form {
+      display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;
+      max-width: 480px; margin: 0 auto;
+    }
+    .cta-input {
+      flex: 1; min-width: 240px;
+      background: rgba(255,255,255,0.1); border: 1.5px solid rgba(255,255,255,0.2);
+      border-radius: 32px; padding: 14px 24px;
+      font-size: 15px; color: #fff; outline: none;
+      font-family: 'Noto Sans JP', sans-serif;
+      transition: border-color 0.2s;
+    }
+    .cta-input::placeholder { color: rgba(255,255,255,0.4); }
+    .cta-input:focus { border-color: var(--accent-bright); }
+    .cta-submit {
+      background: var(--accent); color: #fff;
+      border: none; border-radius: 32px;
+      padding: 14px 28px; font-size: 15px; font-weight: 600;
+      cursor: pointer; font-family: 'Noto Sans JP', sans-serif;
+      transition: background 0.2s, transform 0.15s;
+      white-space: nowrap;
+    }
+    .cta-submit:hover { background: #7c3aed; transform: translateY(-1px); }
+    .cta-note { font-size: 12px; color: rgba(255,255,255,0.35); margin-top: 16px; }
+    .cta-count { font-size: 13px; color: rgba(255,255,255,0.5); margin-top: 24px; }
+    .cta-count strong { color: var(--accent-bright); }
+    #thanks { display: none; }
+    #thanks p { font-size: 18px; color: #fff; font-weight: 600; }
+    #thanks span { font-size: 40px; display: block; margin-bottom: 12px; }
+
+    /* ── FOOTER ── */
+    footer {
+      background: #0d0618; padding: 40px 24px;
+      text-align: center;
+    }
+    .footer-logo { font-size: 18px; font-weight: 700; color: #fff; margin-bottom: 8px; }
+    .footer-logo span { color: var(--accent-bright); }
+    footer p { font-size: 12px; color: rgba(255,255,255,0.3); }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 768px) {
+      nav { padding: 14px 20px; }
+      .hero { padding: 100px 20px 60px; }
+      .phone-float { display: none; }
+      .stat-item { padding: 0 20px; }
+      .stat-num { font-size: 28px; }
+      .steps { gap: 40px; }
+      .step:not(:last-child)::after { display: none; }
+      .ai-grid { grid-template-columns: 1fr; }
+      section { padding: 72px 20px; }
+    }
+    @media (max-width: 480px) {
+      .stats { flex-wrap: wrap; gap: 32px; }
+      .stat-item { border-right: none; width: 50%; }
+    }
+  </style>
+</head>
+
+<body>
+
+<!-- ── NAV ── -->
+<nav>
+  <a href="#" class="nav-logo">Closet <span>AI</span></a>
+  <a href="#register" class="nav-cta">事前登録する</a>
+</nav>
+
+
+<!-- ── HERO ── -->
+<section class="hero">
+  <div class="hero-badge">AIファッションアシスタント — 近日公開</div>
+  <h1>毎朝の「何着よう」を、<br><em>AIが解決する。</em></h1>
+  <p>
+    服を撮るだけで自動登録。今日の天気とTPOに合ったコーデをAIがいつでも提案。
+    あなたのクローゼットをスマートに革新します。
+  </p>
+  <div class="hero-btns">
+    <a href="#register" class="btn-primary">✦ 事前登録する（無料）</a>
+    <a href="#features" class="btn-secondary">機能を見る</a>
+  </div>
+
+  <!-- Phone mockup -->
+  <div class="phone-wrap">
+    <div class="phone-float left">
+      <div class="float-icon">🌤️</div>
+      <div class="float-label">今日の天気</div>
+      <div class="float-value">18°C 快晴</div>
+    </div>
+    <div class="phone">
+      <div class="phone-notch"></div>
+      <div class="phone-screen">
+        <div class="sim-header">
+          <div class="sim-header-mini">MY CLOSET</div>
+          <div class="sim-header-title">クローゼット</div>
+        </div>
+        <div style="background:#1a0a2e;padding:6px 14px 8px;display:flex;gap:6px;flex-wrap:wrap;">
+          <div class="sim-tab active">すべて</div>
+          <div class="sim-tab">トップス</div>
+          <div class="sim-tab">パンツ</div>
+          <div class="sim-tab">シューズ</div>
+        </div>
+        <div class="sim-body">
+          <div class="sim-grid">
+            <div class="sim-card">
+              <div class="sim-card-img" style="background:#f5f5f0;">👔</div>
+              <div class="sim-card-name">白シャツ</div>
+              <div class="sim-card-sub">3日前</div>
+              <div class="sim-card-badge">トップス</div>
+            </div>
+            <div class="sim-card">
+              <div class="sim-card-img" style="background:#222;">👖</div>
+              <div class="sim-card-name">黒スキニー</div>
+              <div class="sim-card-sub">1週間前</div>
+              <div class="sim-card-badge">パンツ</div>
+            </div>
+            <div class="sim-card">
+              <div class="sim-card-img" style="background:#c9b99a;">🧥</div>
+              <div class="sim-card-name">コート</div>
+              <div class="sim-card-sub">2週間前</div>
+              <div class="sim-card-badge">アウター</div>
+            </div>
+            <div class="sim-card">
+              <div class="sim-card-img" style="background:#efefef;">👟</div>
+              <div class="sim-card-name">スニーカー</div>
+              <div class="sim-card-sub">昨日</div>
+              <div class="sim-card-badge">シューズ</div>
+            </div>
+          </div>
+        </div>
+        <div class="sim-tabbar">
+          <div class="sim-tabbar-item active"><div class="sim-tabbar-icon">🗂️</div>クローゼット</div>
+          <div class="sim-tabbar-item"><div class="sim-tabbar-icon">✨</div>コーデ提案</div>
+          <div class="sim-tabbar-item"><div class="sim-tabbar-icon">⚙️</div>設定</div>
+        </div>
+      </div>
+    </div>
+    <div class="phone-float right">
+      <div class="float-icon">✨</div>
+      <div class="float-label">AIスコア</div>
+      <div class="float-value">94 / 100</div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ── STATS ── -->
+<div class="stats">
+  <div class="stat-item">
+    <div class="stat-num">3秒</div>
+    <div class="stat-label">AI解析の所要時間</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-num">100%</div>
+    <div class="stat-label">AIが自動でカテゴリ分類</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-num">毎日</div>
+    <div class="stat-label">天気連動コーデ提案</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-num">無料</div>
+    <div class="stat-label">事前登録受付中</div>
+  </div>
+</div>
+
+
+<!-- ── PROBLEM ── -->
+<section class="problem">
+  <div class="problem-inner">
+    <div class="section-label">PROBLEM</div>
+    <h2 class="section-title">こんな悩み、ありませんか？</h2>
+    <div class="problem-tags">
+      <div class="problem-tag">😩 毎朝コーデに時間がかかる</div>
+      <div class="problem-tag">🤷 持ってる服を把握できていない</div>
+      <div class="problem-tag">🌧️ 天気に合わない服を着てしまう</div>
+      <div class="problem-tag">📦 同じ服ばかり着ている気がする</div>
+      <div class="problem-tag">🛍️ 似たような服をまた買ってしまう</div>
+    </div>
+    <div class="problem-arrow">↓</div>
+    <div class="problem-solution">
+      <h3>✦ Closet AI がすべて解決します</h3>
+      <p>AIがあなたのクローゼットを管理し、毎日の天気とシーンに合った最高のコーデを自動で提案。もう「何を着よう」と悩む朝は終わりです。</p>
+    </div>
+  </div>
+</section>
+
+
+<!-- ── FEATURES ── -->
+<section id="features">
+  <div class="container">
+    <div class="section-label">FEATURES</div>
+    <h2 class="section-title">3つの革新的な機能</h2>
+    <p class="section-sub">写真を1枚撮るだけ。あとはAIがすべて引き受けます。</p>
+    <div class="features-grid">
+
+      <div class="feature-card">
+        <div class="feature-icon purple">📸</div>
+        <h3>AI自動解析</h3>
+        <p>
+          服の写真を撮るだけで、AIが<strong>名前・カテゴリ・色・季節</strong>を瞬時に認識。
+          手入力ゼロでクローゼットが完成します。
+        </p>
+        <div class="feature-tag">✦ Powered by Claude AI</div>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon green">🌤️</div>
+        <h3>天気連動コーデ提案</h3>
+        <p>
+          今日の気温・天気・TPO（仕事・デート・カジュアル）を組み合わせて、
+          あなたのクローゼットから<strong>最適なコーデを自動提案</strong>。
+        </p>
+        <div class="feature-tag">✦ リアルタイム天気連動</div>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon orange">🗂️</div>
+        <h3>スマートなクローゼット管理</h3>
+        <p>
+          カテゴリ・季節・色でフィルタリング。あなたが持っている服を
+          <strong>いつでも瞬時に把握</strong>できます。衝動買いも減らせます。
+        </p>
+        <div class="feature-tag">✦ 季節・TPO別フィルター</div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
+<!-- ── HOW IT WORKS ── -->
+<section class="how">
+  <div class="container">
+    <div style="text-align:center;">
+      <div class="section-label">HOW IT WORKS</div>
+      <h2 class="section-title">使い方は、たった3ステップ</h2>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-emoji">📷</div>
+        <div class="step-num">1</div>
+        <h3>服を撮影する</h3>
+        <p>スマホで服の写真を撮るか、アルバムから選ぶだけ。難しい操作は一切なし。</p>
+      </div>
+      <div class="step">
+        <div class="step-emoji">🤖</div>
+        <div class="step-num">2</div>
+        <h3>AIが自動解析</h3>
+        <p>AIが服の名前・カテゴリ・色・季節を3秒で解析。確認して登録するだけ。</p>
+      </div>
+      <div class="step">
+        <div class="step-emoji">✨</div>
+        <div class="step-num">3</div>
+        <h3>コーデを受け取る</h3>
+        <p>今日の天気とTPOに合わせてAIが最高のコーデを提案。毎朝の悩みがゼロに。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ── AI SHOWCASE ── -->
+<section class="ai-showcase">
+  <div class="container">
+    <div class="ai-grid">
+      <div>
+        <div class="section-label">AI ANALYSIS</div>
+        <h2 class="section-title">写真1枚で、<br>すべてを自動認識</h2>
+        <p class="section-sub">最先端のAI「Claude」が服の画像を解析し、名前・カテゴリ・カラー・着用シーズンを瞬時に判定します。</p>
+        <div class="ai-tags">
+          <div class="ai-tag"><span>Claude AI</span> 搭載</div>
+          <div class="ai-tag">日本語・英語 対応</div>
+          <div class="ai-tag">3秒で解析完了</div>
+        </div>
+      </div>
+      <div class="ai-card">
+        <div class="ai-card-title">AI ANALYSIS RESULT ─ 解析結果</div>
+        <div class="ai-result-row">
+          <div class="ai-result-icon">📸</div>
+          <div>
+            <div class="ai-result-label">アイテム名</div>
+            <div class="ai-result-value">ネイビーニット</div>
+          </div>
+          <div class="ai-result-badge">自動提案 ×3</div>
+        </div>
+        <div class="ai-result-row">
+          <div class="ai-result-icon">🏷️</div>
+          <div>
+            <div class="ai-result-label">カテゴリ</div>
+            <div class="ai-result-value">トップス</div>
+          </div>
+          <div class="ai-result-badge">AI判定</div>
+        </div>
+        <div class="ai-result-row">
+          <div class="ai-result-icon">🎨</div>
+          <div>
+            <div class="ai-result-label">メインカラー</div>
+            <div class="ai-result-value">ネイビー</div>
+          </div>
+          <div class="ai-result-badge">AI判定</div>
+        </div>
+        <div class="ai-result-row">
+          <div class="ai-result-icon">🍂</div>
+          <div>
+            <div class="ai-result-label">着用シーズン</div>
+            <div class="ai-result-value">秋・冬</div>
+          </div>
+          <div class="ai-result-badge">AI判定</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ── CTA ── -->
+<section class="cta" id="register">
+  <div id="form-section">
+    <h2>今すぐ、事前登録する。</h2>
+    <p>リリース時にいち早くお知らせします。登録は無料・30秒で完了。</p>
+    <form class="cta-form" onsubmit="handleSubmit(event)">
+      <input
+        type="email"
+        class="cta-input"
+        placeholder="メールアドレスを入力"
+        required
+        id="email-input"
+      >
+      <button type="submit" class="cta-submit">登録する →</button>
+    </form>
+    <p class="cta-note">スパムは送りません。いつでも登録解除できます。</p>
+    <p class="cta-count">現在 <strong id="counter">27</strong> 人が事前登録済み</p>
+  </div>
+  <div id="thanks">
+    <span>🎉</span>
+    <p>ありがとうございます！<br>リリース時にご連絡します。</p>
+  </div>
+</section>
+
+
+<!-- ── FOOTER ── -->
+<footer>
+  <div class="footer-logo">Closet <span>AI</span></div>
+  <p>© 2025 Closet AI. All rights reserved.</p>
+</footer>
+
+
+<script>
+  // 登録カウンターをランダムにリアルっぽく見せる
+  const base = 27;
+  document.getElementById('counter').textContent = base;
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    const email = document.getElementById('email-input').value;
+    // メールリンクで事前登録を受け取る
+    const subject = encodeURIComponent('Closet AI 事前登録');
+    const body = encodeURIComponent('事前登録を希望します。\n\nメールアドレス: ' + email);
+    window.location.href = 'mailto:nochiyuki0101@gmail.com?subject=' + subject + '&body=' + body;
+    // サンキューメッセージ表示
+    document.getElementById('form-section').style.display = 'none';
+    document.getElementById('thanks').style.display = 'block';
+    // カウンターを1増やす
+    const n = parseInt(document.getElementById('counter').textContent || '27') + 1;
+    document.getElementById('counter').textContent = n;
+  }
+
+  // スクロールアニメーション
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.style.opacity = '1';
+        entry.target.style.transform = 'translateY(0)';
+      }
+    });
+  }, { threshold: 0.1 });
+
+  document.querySelectorAll('.feature-card, .step, .ai-card').forEach(el => {
+    el.style.opacity = '0';
+    el.style.transform = 'translateY(24px)';
+    el.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+    observer.observe(el);
+  });
+</script>
+
+</body>
+</html>
