@@ -44,7 +44,7 @@ export default function SharedClosetScreen() {
           </View>
         </View>
         {clothes.length === 0 ? (
-          <Text style={s.empty}>{t.noHistoryText}</Text>
+          <Text style={s.empty}>{t.sharedClosetTitle}</Text>
         ) : (
           <View style={s.grid}>
             {clothes.map(cl => (

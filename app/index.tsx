@@ -1,11 +1,11 @@
 import * as ImagePicker from "expo-image-picker";
 // import * as ExpoLinking from "expo-linking"; // TODO: 認証復活時にコメントを戻す（シェア機能）
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Image, Linking, Modal, ScrollView, /*Share,*/ StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../lib/auth";
-import type { ClothItem, WearRecord } from "../lib/db";
-import { addCloth, addWearRecord, deleteCloth, deleteWearRecord, subscribeToClothes, subscribeToWearHistory, updateWearRecord } from "../lib/db";
+import type { ClothItem } from "../lib/db";
+import { addCloth, deleteCloth, subscribeToClothes, uploadClothImage } from "../lib/db";
 import type { Lang, T } from "../lib/i18n";
 import { useLang } from "../lib/i18n";
 import type { WeatherInfo } from "../lib/weather";
@@ -14,6 +14,7 @@ import { fetchWeather } from "../lib/weather";
 const BRAND="#1a0a2e";
 const CATS=["すべて","トップス","ジャケット/アウター","パンツ","オールインワン","スカート","ワンピース/ドレス","バッグ","シューズ","ファッション雑貨"];
 const TPOS=["すべて","仕事","デート","カジュアル"];
+const SEASONS=["春","夏","秋","冬","オールシーズン"];
 const COORDS=[{id:"1",tpo:"仕事",weather:"☀️ 18°C",ids:["1","4","2","6"],comment:"オフィスコーデ。ネイビーニットで知的な印象に。",score:94},{id:"2",tpo:"デート",weather:"☁️ 15°C",ids:["1","3","5"],comment:"コートでエレガントに。スカートが女性らしさをプラス。",score:88}];
 const INIT=[{id:"1",name:"白シャツ",cat:"トップス",bg:"#F5F5F0",icon:"👔",last:"2日前",image:null},{id:"2",name:"黒スキニー",cat:"ボトムス",bg:"#222",icon:"👖",last:"1週間前",image:null},{id:"3",name:"コート",cat:"アウター",bg:"#C9B99A",icon:"🧥",last:"2週間前",image:null},{id:"4",name:"ネイビーニット",cat:"トップス",bg:"#1B2A4A",icon:"🧶",last:"3日前",image:null},{id:"5",name:"スカート",cat:"ボトムス",bg:"#8B6B6B",icon:"👗",last:"1ヶ月前",image:null},{id:"6",name:"スニーカー",cat:"シューズ",bg:"#EFEFEF",icon:"👟",last:"昨日",image:null}];
 type CoordItem={id:string;tpo:string;weather:string;ids:string[];comment:string;score:number};
@@ -75,11 +76,12 @@ async function requestAndPick(cam:boolean,t:T):Promise<{uri:string;base64:string
   return{uri:asset.uri,base64:asset.base64??'',mimeType:asset.mimeType??'image/jpeg'};
 }
 
-async function fetchNameSuggestions(base64:string,mimeType:string,lang:Lang):Promise<string[]>{
+async function fetchClothAnalysis(base64:string,mimeType:string,lang:Lang):Promise<{names:string[];cat:string;color:string;season:string}>{
   const key=process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY;
+  const catList=["トップス","ジャケット/アウター","パンツ","オールインワン","スカート","ワンピース/ドレス","バッグ","シューズ","ファッション雑貨"];
   const prompt=lang==='en'
-    ?'Look at this clothing item and suggest 3 short names (max 10 chars each). Return only a JSON array, e.g. ["White Shirt","Cotton Top","Basic Tee"]'
-    :'この服を見て、短い名前を3つ提案してください（各10文字以内）。JSON配列のみ返してください。例：["白シャツ","コットンT","ベーシック"]';
+    ?`Analyze this clothing item. Return only JSON:\n{"names":["3 short English names max 10 chars each"],"cat":"one of: ${catList.join(',')}","color":"main color in Japanese (e.g. 白,黒,ネイビー,ベージュ)","season":"one of: 春,夏,秋,冬,オールシーズン"}\nExample: {"names":["White Shirt","Cotton Top","Basic Tee"],"cat":"トップス","color":"白","season":"オールシーズン"}`
+    :`この服を解析してJSONのみ返してください:\n{"names":["短い名前を3つ（各10文字以内）"],"cat":"${catList.join('、')}のどれか","color":"メインカラー（例：白、黒、ネイビー、ベージュ）","season":"春、夏、秋、冬、オールシーズンのどれか"}\n例：{"names":["白シャツ","コットンT","ベーシック"],"cat":"トップス","color":"白","season":"オールシーズン"}`;
   const ctrl=new AbortController();
   const timer=setTimeout(()=>ctrl.abort(),20000);
   try{
@@ -88,7 +90,7 @@ async function fetchNameSuggestions(base64:string,mimeType:string,lang:Lang):Pro
       headers:{'Content-Type':'application/json','x-api-key':key!,'anthropic-version':'2023-06-01'},
       body:JSON.stringify({
         model:'claude-haiku-4-5-20251001',
-        max_tokens:128,
+        max_tokens:256,
         messages:[{role:'user',content:[
           {type:'image',source:{type:'base64',media_type:mimeType,data:base64}},
           {type:'text',text:prompt},
@@ -99,9 +101,15 @@ async function fetchNameSuggestions(base64:string,mimeType:string,lang:Lang):Pro
     if(!res.ok)throw new Error(`API error: ${res.status}`);
     const data=await res.json();
     const text:string=data.content[0].text;
-    const match=text.match(/\[[\s\S]*\]/);
+    const match=text.match(/\{[\s\S]*\}/);
     if(!match)throw new Error('Invalid response');
-    return(JSON.parse(match[0])as string[]).slice(0,3);
+    const r=JSON.parse(match[0]);
+    return{
+      names:Array.isArray(r.names)?r.names.slice(0,3):[],
+      cat:catList.includes(r.cat)?r.cat:catList[0],
+      color:typeof r.color==='string'?r.color:'',
+      season:SEASONS.includes(r.season)?r.season:'オールシーズン',
+    };
   }finally{
     clearTimeout(timer);
   }
@@ -111,7 +119,7 @@ export default function App(){
   const{t}=useLang();
   // const{user}=useAuth(); // TODO: 認証復活時にコメントを戻す
   const uid='test-user';
-  const TABS_I18N=useMemo(()=>[{label:t.tabCloset,icon:"🗂️"},{label:t.tabSuggest,icon:"✨"},{label:t.tabHistory,icon:"📅"},{label:t.tabSettings,icon:"⚙️"}],[t]);
+  const TABS_I18N=useMemo(()=>[{label:t.tabCloset,icon:"🗂️"},{label:t.tabSuggest,icon:"✨"},{label:t.tabSettings,icon:"⚙️"}],[t]);
   const[tab,setTab]=useState(0);
   const[clothes,setClothes]=useState<ClothItem[]>([]);
   const[loading,setLoading]=useState(true);
@@ -155,8 +163,7 @@ export default function App(){
       <View style={{flex:1}}>
         {tab===0&&<ClosetScreen clothes={clothes}/>}
         {tab===1&&<SuggestScreen clothes={clothes} clothesMap={clothesMap} weather={weather} weatherLoading={weatherLoading}/>}
-        {tab===2&&<HistoryScreen clothes={clothes} clothesMap={clothesMap}/>}
-        {tab===3&&<SettingsScreen/>}
+        {tab===2&&<SettingsScreen/>}
       </View>
       <View style={s.bar}>
         {TABS_I18N.map((tb,i)=>(
@@ -182,6 +189,10 @@ function ClosetScreen({clothes}:{clothes:ClothItem[]}){
   const[nc,setNc]=useState(CATS[1]);
   const[aiSuggestions,setAiSuggestions]=useState<string[]>([]);
   const[suggestionsLoading,setSuggestionsLoading]=useState(false);
+  const[color,setColor]=useState('');
+  const[season,setSeason]=useState('オールシーズン');
+  const[saving,setSaving]=useState(false);
+  const uploadPromiseRef=useRef<Promise<string|null>>(Promise.resolve(null));
   const[detailItem,setDetailItem]=useState<ClothItem|null>(null);
   const list=cat===CATS[0]?clothes:clothes.filter(c=>c.cat===cat);
 
@@ -210,10 +221,18 @@ function ClosetScreen({clothes}:{clothes:ClothItem[]}){
           if(result){
             setImg(result.uri);
             setAiSuggestions([]);
+            setColor('');
+            setSeason('オールシーズン');
             setSuggestionsLoading(true);
             setNameModal(true);
-            fetchNameSuggestions(result.base64,result.mimeType,lang)
-              .then(setAiSuggestions)
+            uploadPromiseRef.current=uploadClothImage(uid,result.base64,result.mimeType).catch(()=>null);
+            fetchClothAnalysis(result.base64,result.mimeType,lang)
+              .then(analysis=>{
+                setAiSuggestions(analysis.names);
+                setNc(analysis.cat);
+                setColor(analysis.color);
+                setSeason(analysis.season);
+              })
               .catch(()=>{})
               .finally(()=>setSuggestionsLoading(false));
           }
@@ -224,11 +243,15 @@ function ClosetScreen({clothes}:{clothes:ClothItem[]}){
 
   const save=async()=>{
     if(!name){Alert.alert(t.chooseName);return;}
+    setSaving(true);
     try{
-      await addCloth(uid,{name,cat:nc,bg:"#E8E8E8",icon:"👗",last:t.noWorn,image:img});
-      setNameModal(false);setName("");setImg(null);setAiSuggestions([]);setSuggestionsLoading(false);
+      const persistentUrl=await uploadPromiseRef.current;
+      await addCloth(uid,{name,cat:nc,bg:"#E8E8E8",icon:"👗",last:t.noWorn,image:persistentUrl||img,color,season});
+      setNameModal(false);setName("");setImg(null);setAiSuggestions([]);setSuggestionsLoading(false);setColor('');setSeason('オールシーズン');
     }catch{
       Alert.alert(t.errorTitle,t.deleteError);
+    }finally{
+      setSaving(false);
     }
   };
 
@@ -288,42 +311,62 @@ function ClosetScreen({clothes}:{clothes:ClothItem[]}){
 
       <Modal visible={nameModal} transparent animationType="slide">
         <View style={s.overlay}>
-          <View style={s.sheet}>
+          <View style={[s.sheet,{maxHeight:"88%"}]}>
             <View style={s.handle}/>
             <Text style={s.sheetTitle}>{t.enterInfo}</Text>
             {img&&<Image source={{uri:img}} style={s.previewImg}/>}
-            <Text style={s.inputLabel}>{t.chooseName}</Text>
-            <TextInput
-              style={s.nameInput}
-              value={name}
-              onChangeText={setName}
-              placeholder={t.chooseName}
-              placeholderTextColor="#BBB"
-              maxLength={30}
-              returnKeyType="done"
-            />
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{marginBottom:16}}>
-              {suggestionsLoading
-                ?<ActivityIndicator color={BRAND} style={{marginVertical:6,marginLeft:4}}/>
-                :(aiSuggestions.length>0?aiSuggestions:t.nameSuggestions).map(n=>(
-                  <TouchableOpacity key={n} style={[s.chip,name===n&&s.chipOn]} onPress={()=>setName(n)}>
-                    <Text style={[s.chipTxt,name===n&&s.chipTxtOn]}>{n}</Text>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text style={s.inputLabel}>{t.chooseName}</Text>
+              <TextInput
+                style={s.nameInput}
+                value={name}
+                onChangeText={setName}
+                placeholder={t.chooseName}
+                placeholderTextColor="#BBB"
+                maxLength={30}
+                returnKeyType="done"
+              />
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{marginBottom:16}}>
+                {suggestionsLoading
+                  ?<ActivityIndicator color={BRAND} style={{marginVertical:6,marginLeft:4}}/>
+                  :(aiSuggestions.length>0?aiSuggestions:t.nameSuggestions).map(n=>(
+                    <TouchableOpacity key={n} style={[s.chip,name===n&&s.chipOn]} onPress={()=>setName(n)}>
+                      <Text style={[s.chipTxt,name===n&&s.chipTxtOn]}>{n}</Text>
+                    </TouchableOpacity>
+                  ))
+                }
+              </ScrollView>
+              <Text style={s.inputLabel}>{t.categoryLabel}</Text>
+              <View style={{flexDirection:"row",flexWrap:"wrap",gap:8,marginBottom:20}}>
+                {CATS.slice(1).map(c=>(
+                  <TouchableOpacity key={c} style={[s.chip,nc===c&&s.chipOn]} onPress={()=>setNc(c)}>
+                    <Text style={[s.chipTxt,nc===c&&s.chipTxtOn]}>{t.catLabels[c]??c}</Text>
                   </TouchableOpacity>
-                ))
-              }
+                ))}
+              </View>
+              <Text style={s.inputLabel}>{t.colorLabel}</Text>
+              <TextInput
+                style={s.nameInput}
+                value={color}
+                onChangeText={setColor}
+                placeholder={t.colorPlaceholder}
+                placeholderTextColor="#BBB"
+                maxLength={20}
+                returnKeyType="done"
+              />
+              <Text style={s.inputLabel}>{t.seasonLabel}</Text>
+              <View style={{flexDirection:"row",flexWrap:"wrap",gap:8,marginBottom:20}}>
+                {SEASONS.map(sv=>(
+                  <TouchableOpacity key={sv} style={[s.chip,season===sv&&s.chipOn]} onPress={()=>setSeason(sv)}>
+                    <Text style={[s.chipTxt,season===sv&&s.chipTxtOn]}>{t.seasonLabels[sv]??sv}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </ScrollView>
-            <Text style={s.inputLabel}>{t.categoryLabel}</Text>
-            <View style={{flexDirection:"row",flexWrap:"wrap",gap:8,marginBottom:20}}>
-              {CATS.slice(1).map(c=>(
-                <TouchableOpacity key={c} style={[s.chip,nc===c&&s.chipOn]} onPress={()=>setNc(c)}>
-                  <Text style={[s.chipTxt,nc===c&&s.chipTxtOn]}>{t.catLabels[c]??c}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-            <TouchableOpacity style={s.cancelBtn} onPress={save}>
-              <Text style={s.cancelTxt}>{t.register}</Text>
+            <TouchableOpacity style={[s.cancelBtn,saving&&{opacity:0.7}]} onPress={save} disabled={saving}>
+              {saving?<ActivityIndicator color="#fff"/>:<Text style={s.cancelTxt}>{t.register}</Text>}
             </TouchableOpacity>
-            <TouchableOpacity style={{marginTop:12,alignItems:"center"}} onPress={()=>{setNameModal(false);setImg(null);setAiSuggestions([]);setSuggestionsLoading(false);}}>
+            <TouchableOpacity style={{marginTop:12,alignItems:"center"}} onPress={()=>{setNameModal(false);setImg(null);setAiSuggestions([]);setSuggestionsLoading(false);setColor('');setSeason('オールシーズン');uploadPromiseRef.current=Promise.resolve(null);}}>
               <Text style={{color:"#999",fontSize:14}}>{t.cancel}</Text>
             </TouchableOpacity>
           </View>
@@ -332,19 +375,39 @@ function ClosetScreen({clothes}:{clothes:ClothItem[]}){
 
       <Modal visible={!!detailItem} transparent animationType="slide">
         <View style={s.overlay}>
-          <View style={s.sheet}>
+          <View style={[s.sheet,{maxHeight:"88%"}]}>
             <View style={s.handle}/>
-            {detailItem?.image
-              ?<Image source={{uri:detailItem.image}} style={s.detailImg}/>
-              :<View style={[s.detailIcon,{backgroundColor:detailItem?.bg}]}>
-                <Text style={{fontSize:72}}>{detailItem?.icon}</Text>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {detailItem?.image
+                ?<Image source={{uri:detailItem.image}} style={s.detailImg}/>
+                :<View style={[s.detailIcon,{backgroundColor:detailItem?.bg}]}>
+                  <Text style={{fontSize:72}}>{detailItem?.icon}</Text>
+                </View>
+              }
+              <Text style={s.detailName}>{detailItem?.name}</Text>
+              <View style={s.detailInfoBox}>
+                <View style={s.detailRow}>
+                  <Text style={s.detailRowLabel}>{t.categoryLabel}</Text>
+                  <Text style={s.detailRowValue}>{t.catLabels[detailItem?.cat??'']??detailItem?.cat}</Text>
+                </View>
+                {detailItem?.color?(
+                  <View style={s.detailRow}>
+                    <Text style={s.detailRowLabel}>{t.colorLabel}</Text>
+                    <Text style={s.detailRowValue}>{detailItem.color}</Text>
+                  </View>
+                ):null}
+                {detailItem?.season?(
+                  <View style={s.detailRow}>
+                    <Text style={s.detailRowLabel}>{t.seasonLabel}</Text>
+                    <Text style={s.detailRowValue}>{t.seasonLabels[detailItem.season]??detailItem.season}</Text>
+                  </View>
+                ):null}
+                <View style={[s.detailRow,{borderBottomWidth:0}]}>
+                  <Text style={s.detailRowLabel}>{t.lastWorn}</Text>
+                  <Text style={s.detailRowValue}>{detailItem?.last}</Text>
+                </View>
               </View>
-            }
-            <Text style={s.detailName}>{detailItem?.name}</Text>
-            <View style={{flexDirection:"row",alignItems:"center",gap:8,marginBottom:24}}>
-              <View style={s.badge}><Text style={s.badgeTxt}>{detailItem?.cat}</Text></View>
-              <Text style={{fontSize:12,color:"#999"}}>{t.lastWorn+": "}{detailItem?.last}</Text>
-            </View>
+            </ScrollView>
             <TouchableOpacity style={s.deleteBtn} onPress={handleDelete}>
               <Text style={s.deleteTxt}>{t.deleteItem}</Text>
             </TouchableOpacity>
@@ -436,193 +499,6 @@ function SuggestScreen({clothes,clothesMap,weather,weatherLoading}:{
   );
 }
 
-function HistoryScreen({clothes,clothesMap}:{clothes:ClothItem[];clothesMap:Map<string,ClothItem>}){
-  const{t}=useLang();
-  // const{user}=useAuth(); // TODO: 認証復活時にコメントを戻す
-  const uid='test-user';
-  const[history,setHistory]=useState<WearRecord[]>([]);
-  const[recordModal,setRecordModal]=useState(false);
-  const[selIds,setSelIds]=useState<string[]>([]);
-  const[selTpo,setSelTpo]=useState(TPOS[1]);
-  const[editingRecord,setEditingRecord]=useState<WearRecord|null>(null);
-  const[editIds,setEditIds]=useState<string[]>([]);
-  const[editTpo,setEditTpo]=useState(TPOS[1]);
-
-  useEffect(()=>{
-    if(!uid)return;
-    return subscribeToWearHistory(uid,setHistory);
-  },[uid]);
-
-  const{heavyEntry,heavyCloth}=useMemo(()=>{
-    const thisMonth=new Date().toISOString().slice(0,7);
-    const counts:Record<string,number>={};
-    history.filter(h=>h.date.startsWith(thisMonth)).forEach(h=>
-      h.ids.forEach(id=>{counts[id]=(counts[id]||0)+1;})
-    );
-    const entry=Object.entries(counts).sort((a,b)=>b[1]-a[1])[0];
-    return{heavyEntry:entry,heavyCloth:entry?clothesMap.get(entry[0])??null:null};
-  },[history,clothesMap]);
-
-  const toggleSel=(id:string)=>setSelIds(p=>p.includes(id)?p.filter(x=>x!==id):[...p,id]);
-  const toggleEditId=(id:string)=>setEditIds(p=>p.includes(id)?p.filter(x=>x!==id):[...p,id]);
-
-  const saveRecord=async()=>{
-    if(!selIds.length){Alert.alert(t.selectClothes);return;}
-    const today=new Date().toISOString().slice(0,10);
-    await addWearRecord(uid,{date:today,ids:selIds,tpo:selTpo});
-    setRecordModal(false);setSelIds([]);setSelTpo(TPOS[1]);
-  };
-
-  const openEdit=(record:WearRecord)=>{
-    setEditingRecord(record);
-    setEditIds(record.ids);
-    setEditTpo(record.tpo);
-  };
-
-  const saveEdit=async()=>{
-    if(!editingRecord)return;
-    if(!editIds.length){Alert.alert(t.selectClothes);return;}
-    await updateWearRecord(uid,editingRecord.id,{date:editingRecord.date,ids:editIds,tpo:editTpo});
-    setEditingRecord(null);
-  };
-
-  const confirmDeleteRecord=()=>{
-    if(!editingRecord)return;
-    Alert.alert(t.deleteConfirmTitle,t.deleteRecordConfirm,[
-      {text:t.cancel,style:'cancel'},
-      {text:t.deleteItem,style:'destructive',onPress:async()=>{
-        await deleteWearRecord(uid,editingRecord.id);
-        setEditingRecord(null);
-      }},
-    ]);
-  };
-
-  const fmtDay=useCallback((d:string)=>{
-    const today=new Date().toISOString().slice(0,10);
-    if(d===today)return t.today;
-    const[,m,day]=d.split('-');
-    return `${Number(m)}/${Number(day)}`;
-  },[t.today]);
-
-  return(
-    <View style={{flex:1,backgroundColor:"#FAFAF7"}}>
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <View style={s.hdr}>
-          <View>
-            <Text style={s.hdrSub}>{t.historySub}</Text>
-            <Text style={s.hdrTitle}>{t.historyTitle}</Text>
-          </View>
-          <TouchableOpacity style={s.addBtn} onPress={()=>setRecordModal(true)}>
-            <Text style={{color:"#fff",fontSize:26}}>+</Text>
-          </TouchableOpacity>
-        </View>
-        {heavyEntry&&heavyCloth?(
-          <View style={s.heavyCard}>
-            <Text style={s.heavySub}>{t.heavyRotation}</Text>
-            <View style={{flexDirection:"row",alignItems:"center",gap:12}}>
-              <View style={[s.heavyIcon,{backgroundColor:heavyCloth.bg}]}>
-                {heavyCloth.image?<Image source={{uri:heavyCloth.image}} style={{width:56,height:56,borderRadius:16}}/>:<Text style={{fontSize:28}}>{heavyCloth.icon}</Text>}
-              </View>
-              <View>
-                <Text style={s.heavyName}>{heavyCloth.name}</Text>
-                <Text style={s.heavyCount}>{t.timesThisMonth(heavyEntry[1])}</Text>
-              </View>
-            </View>
-          </View>
-        ):(
-          <View style={[s.heavyCard,{alignItems:"center"}]}>
-            <Text style={s.heavySub}>{t.heavyRotation}</Text>
-            <Text style={{color:"rgba(255,255,255,0.5)",marginTop:8}}>{t.noHeavyRotation}</Text>
-          </View>
-        )}
-        <View style={{paddingHorizontal:20}}>
-          {history.length===0&&(
-            <Text style={{textAlign:"center",color:"#999",marginTop:40,marginBottom:20,lineHeight:22}}>{t.noHistoryText}</Text>
-          )}
-          {history.map(h=>(
-            <TouchableOpacity key={h.id} style={s.histRow} onPress={()=>openEdit(h)}>
-              <Text style={s.histDay}>{fmtDay(h.date)}</Text>
-              <View style={s.histItems}>
-                {h.ids.map(id=>{const cl=clothesMap.get(id);return cl?(<View key={id} style={[s.histItem,{backgroundColor:cl.bg}]}>{cl.image?<Image source={{uri:cl.image}} style={{width:42,height:42,borderRadius:12}}/>:<Text style={{fontSize:18}}>{cl.icon}</Text>}</View>):null;})}
-              </View>
-              <View style={s.tpoBadge}><Text style={s.tpoBadgeTxt}>{t.tpoLabels[h.tpo]??h.tpo}</Text></View>
-            </TouchableOpacity>
-          ))}
-        </View>
-        <View style={{height:20}}/>
-      </ScrollView>
-
-      <Modal visible={recordModal} transparent animationType="slide">
-        <View style={s.overlay}>
-          <View style={[s.sheet,{maxHeight:"80%"}]}>
-            <View style={s.handle}/>
-            <Text style={s.sheetTitle}>{t.recordToday}</Text>
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={s.inputLabel}>{t.wornItems}</Text>
-              <View style={{flexDirection:"row",flexWrap:"wrap",gap:8,marginBottom:16}}>
-                {clothes.map(cl=>(
-                  <TouchableOpacity key={cl.id} style={[s.chip,selIds.includes(cl.id)&&s.chipOn]} onPress={()=>toggleSel(cl.id)}>
-                    <Text style={[s.chipTxt,selIds.includes(cl.id)&&s.chipTxtOn]}>{cl.icon} {cl.name}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-              <Text style={s.inputLabel}>{t.tpoLabel}</Text>
-              <View style={{flexDirection:"row",flexWrap:"wrap",gap:8,marginBottom:20}}>
-                {TPOS.slice(1).map(tp=>(
-                  <TouchableOpacity key={tp} style={[s.chip,selTpo===tp&&s.chipOn]} onPress={()=>setSelTpo(tp)}>
-                    <Text style={[s.chipTxt,selTpo===tp&&s.chipTxtOn]}>{t.tpoLabels[tp]??tp}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </ScrollView>
-            <TouchableOpacity style={s.cancelBtn} onPress={saveRecord}>
-              <Text style={s.cancelTxt}>{t.saveRecord}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={{marginTop:12,alignItems:"center"}} onPress={()=>{setRecordModal(false);setSelIds([]);setSelTpo(TPOS[1]);}}>
-              <Text style={{color:"#999",fontSize:14}}>{t.cancel}</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      <Modal visible={!!editingRecord} transparent animationType="slide">
-        <View style={s.overlay}>
-          <View style={[s.sheet,{maxHeight:"80%"}]}>
-            <View style={s.handle}/>
-            <Text style={s.sheetTitle}>{t.editRecord}</Text>
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={s.inputLabel}>{t.wornItems}</Text>
-              <View style={{flexDirection:"row",flexWrap:"wrap",gap:8,marginBottom:16}}>
-                {clothes.map(cl=>(
-                  <TouchableOpacity key={cl.id} style={[s.chip,editIds.includes(cl.id)&&s.chipOn]} onPress={()=>toggleEditId(cl.id)}>
-                    <Text style={[s.chipTxt,editIds.includes(cl.id)&&s.chipTxtOn]}>{cl.icon} {cl.name}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-              <Text style={s.inputLabel}>{t.tpoLabel}</Text>
-              <View style={{flexDirection:"row",flexWrap:"wrap",gap:8,marginBottom:20}}>
-                {TPOS.slice(1).map(tp=>(
-                  <TouchableOpacity key={tp} style={[s.chip,editTpo===tp&&s.chipOn]} onPress={()=>setEditTpo(tp)}>
-                    <Text style={[s.chipTxt,editTpo===tp&&s.chipTxtOn]}>{t.tpoLabels[tp]??tp}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </ScrollView>
-            <TouchableOpacity style={s.cancelBtn} onPress={saveEdit}>
-              <Text style={s.cancelTxt}>{t.saveChanges}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[s.deleteBtn,{marginTop:12}]} onPress={confirmDeleteRecord}>
-              <Text style={s.deleteTxt}>{t.deleteItem}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={{marginTop:12,alignItems:"center"}} onPress={()=>setEditingRecord(null)}>
-              <Text style={{color:"#999",fontSize:14}}>{t.cancel}</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-    </View>
-  );
-}
 
 function SettingsScreen(){
   const{t}=useLang();
@@ -714,14 +590,18 @@ const s=StyleSheet.create({
   chipTxtOn:{color:"#fff"},
   grid:{flexDirection:"row",flexWrap:"wrap",paddingHorizontal:16,gap:12},
   card:{width:"47%",backgroundColor:"#fff",borderRadius:20,padding:14,borderWidth:1,borderColor:"#E8E8E0"},
-  cardImg:{height:88,borderRadius:14,alignItems:"center",justifyContent:"center",marginBottom:10,resizeMode:"cover"},
+  cardImg:{width:"100%",aspectRatio:1,borderRadius:14,alignItems:"center",justifyContent:"center",marginBottom:10,resizeMode:"cover"},
   cardName:{fontSize:13,fontWeight:"600",color:"#1a1a1a"},
   cardSub:{fontSize:10,color:"#999",marginTop:2},
   badge:{position:"absolute",top:10,right:10,backgroundColor:"#F0EDE8",borderRadius:8,paddingHorizontal:6,paddingVertical:2},
   badgeTxt:{fontSize:9,color:"#888"},
-  detailImg:{width:"100%",height:240,borderRadius:20,marginBottom:16,resizeMode:"cover"},
-  detailIcon:{width:"100%",height:240,borderRadius:20,alignItems:"center",justifyContent:"center",marginBottom:16},
-  detailName:{fontSize:22,fontWeight:"700",color:"#1a1a1a",marginBottom:10},
+  detailImg:{width:"100%",aspectRatio:1,borderRadius:20,marginBottom:16,resizeMode:"cover"},
+  detailIcon:{width:"100%",aspectRatio:1,borderRadius:20,alignItems:"center",justifyContent:"center",marginBottom:16},
+  detailName:{fontSize:22,fontWeight:"700",color:"#1a1a1a",marginBottom:16},
+  detailInfoBox:{backgroundColor:"#F5F4F0",borderRadius:16,marginBottom:24,overflow:"hidden"},
+  detailRow:{flexDirection:"row",justifyContent:"space-between",alignItems:"center",paddingHorizontal:16,paddingVertical:13,borderBottomWidth:1,borderBottomColor:"#EBEBE6"},
+  detailRowLabel:{fontSize:13,color:"#999"},
+  detailRowValue:{fontSize:13,fontWeight:"600",color:"#1a1a1a",flexShrink:1,textAlign:"right",marginLeft:16},
   deleteBtn:{backgroundColor:"#E53935",borderRadius:20,padding:16,alignItems:"center"},
   deleteTxt:{color:"#fff",fontSize:16,fontWeight:"600"},
   overlay:{flex:1,backgroundColor:"rgba(0,0,0,0.6)",justifyContent:"flex-end"},
@@ -732,7 +612,7 @@ const s=StyleSheet.create({
   sheetOptTxt:{fontSize:12,color:"#333",textAlign:"center",marginTop:4},
   cancelBtn:{backgroundColor:BRAND,borderRadius:20,padding:16,alignItems:"center"},
   cancelTxt:{color:"#fff",fontSize:16,fontWeight:"600"},
-  previewImg:{width:"100%",height:160,borderRadius:16,marginBottom:16,resizeMode:"cover"},
+  previewImg:{width:"100%",aspectRatio:1,borderRadius:16,marginBottom:16,resizeMode:"cover"},
   inputLabel:{fontSize:13,fontWeight:"600",color:"#1a1a1a",marginBottom:8},
   nameInput:{borderWidth:1.5,borderColor:"#E0E0D8",borderRadius:12,paddingHorizontal:14,paddingVertical:12,fontSize:15,color:"#1a1a1a",backgroundColor:"#fff",marginBottom:12},
   darkHdr:{backgroundColor:BRAND,padding:20,paddingBottom:16},
@@ -757,15 +637,6 @@ const s=StyleSheet.create({
   coComment:{fontSize:13,color:"#555",lineHeight:20},
   regenBtn:{backgroundColor:BRAND,borderRadius:20,padding:18,alignItems:"center"},
   regenTxt:{color:"#fff",fontSize:16,fontWeight:"600"},
-  heavyCard:{backgroundColor:BRAND,borderRadius:20,margin:20,marginTop:0,padding:20},
-  heavySub:{fontSize:11,color:"rgba(255,255,255,0.5)",marginBottom:10},
-  heavyIcon:{width:56,height:56,borderRadius:16,alignItems:"center",justifyContent:"center"},
-  heavyName:{fontSize:18,fontWeight:"600",color:"#fff"},
-  heavyCount:{fontSize:12,color:"rgba(255,255,255,0.6)",marginTop:2},
-  histRow:{flexDirection:"row",alignItems:"center",paddingVertical:14,borderBottomWidth:1,borderBottomColor:"#F0EDE8",gap:12},
-  histDay:{fontSize:11,color:"#999",width:40},
-  histItems:{flexDirection:"row",gap:8,flex:1},
-  histItem:{width:42,height:42,borderRadius:12,alignItems:"center",justifyContent:"center",overflow:"hidden"},
   settCard:{backgroundColor:"#fff",borderRadius:20,marginHorizontal:20,padding:20,borderWidth:1,borderColor:"#E8E8E0"},
   settSec:{fontSize:13,fontWeight:"700",color:"#1a1a1a",marginBottom:14},
   settTitle:{fontSize:15,fontWeight:"600",color:"#1a1a1a"},
