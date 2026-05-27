@@ -9,16 +9,16 @@
   <!-- Background -->
   <rect width="64" height="64" rx="14" fill="url(#bg)"/>
 
-  <!-- Hook (circle) -->
-  <circle cx="32" cy="17" r="4.5" fill="none" stroke="#a78bfa" stroke-width="2.8"/>
-  <!-- Stem -->
-  <line x1="32" y1="21.5" x2="32" y2="29" stroke="#a78bfa" stroke-width="2.8" stroke-linecap="round"/>
+  <!-- T-shirt (white) -->
+  <path d="M26 22 L11 27 L11 35 L19 35 L19 51 L45 51 L45 35 L53 35 L53 27 L38 22
+           Q34 17 32 17 Q30 17 26 22Z"
+        fill="white" opacity="0.93"/>
 
-  <!-- Hanger curve -->
-  <path d="M13 47 Q16 31 32 28 Q48 31 51 47"
-        fill="none" stroke="white" stroke-width="3.2"
-        stroke-linecap="round" stroke-linejoin="round"/>
-  <!-- Bottom bar -->
-  <line x1="11" y1="47" x2="53" y2="47"
-        stroke="white" stroke-width="3.2" stroke-linecap="round"/>
+  <!-- ✨ Sparkle (top-right, lavender) -->
+  <path d="M50 8 L51.4 12.6 L56 13 L51.4 13.4 L50 18 L48.6 13.4 L44 13 L48.6 12.6Z"
+        fill="#a78bfa"/>
+  <line x1="46.5" y1="9.5"  x2="48.6" y2="12.6" stroke="#c4b5fd" stroke-width="1.3" stroke-linecap="round"/>
+  <line x1="53.5" y1="9.5"  x2="51.4" y2="12.6" stroke="#c4b5fd" stroke-width="1.3" stroke-linecap="round"/>
+  <line x1="46.5" y1="16.5" x2="48.6" y2="13.4" stroke="#c4b5fd" stroke-width="1.3" stroke-linecap="round"/>
+  <line x1="53.5" y1="16.5" x2="51.4" y2="13.4" stroke="#c4b5fd" stroke-width="1.3" stroke-linecap="round"/>
 </svg>
