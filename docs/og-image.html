@@ -3,308 +3,318 @@
 <head>
   <meta charset="UTF-8">
   <title>OG Image Generator — Closet AI</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&display=swap" rel="stylesheet">
   <style>
     body {
       margin: 0; padding: 32px;
-      background: #111; display: flex;
-      flex-direction: column; align-items: center; gap: 24px;
-      font-family: 'Noto Sans JP', sans-serif;
-    }
-    .toolbar {
-      display: flex; align-items: center; gap: 16px;
+      background: #111;
+      display: flex; flex-direction: column;
+      align-items: center; gap: 20px;
+      font-family: 'Segoe UI', 'Yu Gothic', 'Meiryo', sans-serif;
     }
     .dl-btn {
       background: #8b5cf6; color: #fff; border: none;
-      border-radius: 12px; padding: 14px 32px;
+      border-radius: 12px; padding: 14px 40px;
       font-size: 16px; font-weight: 700; cursor: pointer;
-      font-family: 'Noto Sans JP', sans-serif;
-      transition: background 0.2s;
+      font-family: inherit; transition: background 0.2s;
     }
     .dl-btn:hover { background: #7c3aed; }
+    .dl-btn:disabled { opacity: 0.6; cursor: default; }
     .note { color: rgba(255,255,255,0.4); font-size: 13px; }
-
-    /* ── OG IMAGE: 1200 × 630 ── */
-    #og {
-      width: 1200px; height: 630px;
-      background: linear-gradient(135deg, #1a0a2e 0%, #2d1054 55%, #1e0a3c 100%);
-      position: relative; overflow: hidden;
-      flex-shrink: 0;
-    }
-
-    /* 背景の光 */
-    #og::before {
-      content: '';
-      position: absolute; inset: 0;
-      background:
-        radial-gradient(ellipse 600px 400px at 80% 50%, rgba(139,92,246,0.22) 0%, transparent 70%),
-        radial-gradient(ellipse 300px 300px at 10% 80%, rgba(139,92,246,0.12) 0%, transparent 60%);
-    }
-
-    /* グリッドパターン */
-    #og::after {
-      content: '';
-      position: absolute; inset: 0;
-      background-image:
-        linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
-      background-size: 60px 60px;
-    }
-
-    .og-inner {
-      position: relative; z-index: 1;
-      width: 100%; height: 100%;
-      display: flex; align-items: center;
-      padding: 0 80px;
-      gap: 60px;
-    }
-
-    /* 左：テキスト */
-    .og-left { flex: 1; }
-
-    .og-badge {
-      display: inline-flex; align-items: center; gap: 8px;
-      background: rgba(139,92,246,0.25);
-      border: 1px solid rgba(139,92,246,0.5);
-      border-radius: 24px; padding: 8px 20px;
-      font-size: 14px; color: #c4b5fd; font-weight: 600;
-      margin-bottom: 28px; letter-spacing: 1px;
-    }
-
-    .og-title {
-      font-size: 80px; font-weight: 900; color: #fff;
-      line-height: 1; letter-spacing: -2px;
-      margin-bottom: 8px;
-    }
-    .og-title span { color: #a78bfa; }
-
-    .og-tagline {
-      font-size: 26px; color: rgba(255,255,255,0.6);
-      font-weight: 400; margin-bottom: 40px;
-      line-height: 1.5;
-    }
-
-    .og-features {
-      display: flex; flex-direction: column; gap: 14px;
-    }
-    .og-feature {
-      display: flex; align-items: center; gap: 14px;
-    }
-    .og-feature-dot {
-      width: 8px; height: 8px; border-radius: 50%;
-      background: #a78bfa; flex-shrink: 0;
-    }
-    .og-feature-text {
-      font-size: 18px; color: rgba(255,255,255,0.75); font-weight: 500;
-    }
-
-    .og-url {
-      position: absolute; bottom: 36px; left: 80px;
-      font-size: 14px; color: rgba(255,255,255,0.3);
-      letter-spacing: 0.5px;
-    }
-
-    /* 右：スマホ */
-    .og-right {
-      flex-shrink: 0; display: flex; align-items: center; justify-content: center;
-    }
-    .og-phone {
-      width: 220px; height: 440px;
-      background: #0d0618;
-      border-radius: 40px;
-      border: 2px solid rgba(255,255,255,0.12);
-      box-shadow: 0 32px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04),
-                  inset 0 0 0 1px rgba(255,255,255,0.04);
-      overflow: hidden; position: relative;
-    }
-    .og-phone-notch {
-      position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
-      width: 70px; height: 18px;
-      background: #0d0618; border-radius: 10px; z-index: 10;
-    }
-    .og-phone-screen {
-      position: absolute; inset: 0;
-      display: flex; flex-direction: column;
-    }
-    .og-sim-hdr {
-      background: #1a0a2e;
-      padding: 38px 12px 10px;
-    }
-    .og-sim-mini { font-size: 7px; color: rgba(255,255,255,0.4); letter-spacing: 1px; }
-    .og-sim-title { font-size: 14px; font-weight: 700; color: #fff; }
-    .og-sim-tabs {
-      background: #1a0a2e; padding: 6px 12px 8px;
-      display: flex; gap: 5px;
-    }
-    .og-sim-tab {
-      padding: 3px 8px; border-radius: 10px; font-size: 7px;
-      color: rgba(255,255,255,0.5); border: 1px solid rgba(255,255,255,0.15);
-    }
-    .og-sim-tab.on { background: #fff; color: #1a0a2e; font-weight: 700; }
-    .og-sim-body {
-      flex: 1; background: #fafaf7; padding: 8px;
-      display: grid; grid-template-columns: 1fr 1fr; gap: 5px;
-      overflow: hidden;
-    }
-    .og-sim-card {
-      background: #fff; border-radius: 10px; padding: 6px;
-      border: 1px solid #e8e8e0;
-    }
-    .og-sim-img {
-      width: 100%; aspect-ratio: 1; border-radius: 7px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 22px; margin-bottom: 4px;
-    }
-    .og-sim-name { font-size: 7px; font-weight: 700; color: #1a1a1a; }
-    .og-sim-cat {
-      display: inline-block; background: #f0ede8; border-radius: 4px;
-      padding: 1px 4px; font-size: 6px; color: #888; margin-top: 2px;
-    }
-    .og-sim-bar {
-      background: #fafaf7; border-top: 1px solid #e8e8e0;
-      display: flex; padding: 5px 4px 3px;
-    }
-    .og-sim-bar-item {
-      flex: 1; text-align: center; font-size: 6px; color: #999;
-      display: flex; flex-direction: column; align-items: center; gap: 1px;
-    }
-    .og-sim-bar-item.on { color: #1a0a2e; font-weight: 700; }
-    .og-sim-icon { font-size: 12px; }
-
-    /* AI解析バッジ（右下） */
-    .og-ai-badge {
-      position: absolute; bottom: -14px; right: -20px;
-      background: #fff; border-radius: 16px;
-      padding: 12px 16px;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-      min-width: 130px;
-    }
-    .og-ai-badge-top { font-size: 10px; color: #999; margin-bottom: 6px; }
-    .og-ai-row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
-    .og-ai-dot { width: 6px; height: 6px; border-radius: 50%; background: #8b5cf6; }
-    .og-ai-text { font-size: 11px; color: #1a1a1a; font-weight: 600; }
+    canvas { border-radius: 4px; box-shadow: 0 8px 40px rgba(0,0,0,0.6); }
   </style>
 </head>
 <body>
+  <button class="dl-btn" id="btn" onclick="downloadPng()">⬇ og.png としてダウンロード</button>
+  <span class="note">ダウンロードした og.png を docs/ フォルダに入れてください</span>
+  <canvas id="c" width="1200" height="630"></canvas>
 
-  <div class="toolbar">
-    <button class="dl-btn" onclick="download()">⬇ og.png としてダウンロード</button>
-    <span class="note">クリック → docs/og.png として保存してください</span>
-  </div>
-
-  <!-- ── 1200 × 630 OG IMAGE ── -->
-  <div id="og">
-    <div class="og-inner">
-
-      <!-- 左：テキスト -->
-      <div class="og-left">
-        <div class="og-badge">✦ AI FASHION ASSISTANT</div>
-        <div class="og-title">Closet <span>AI</span></div>
-        <div class="og-tagline">
-          毎朝の「何着よう」を、<br>AIが解決する。
-        </div>
-        <div class="og-features">
-          <div class="og-feature">
-            <div class="og-feature-dot"></div>
-            <div class="og-feature-text">📸 服を撮るだけ — AIが自動解析</div>
-          </div>
-          <div class="og-feature">
-            <div class="og-feature-dot"></div>
-            <div class="og-feature-text">🌤️ 天気×TPOでコーデを毎日提案</div>
-          </div>
-          <div class="og-feature">
-            <div class="og-feature-dot"></div>
-            <div class="og-feature-text">🗂️ スマートなクローゼット管理</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 右：スマホモック -->
-      <div class="og-right">
-        <div style="position:relative;">
-          <div class="og-phone">
-            <div class="og-phone-notch"></div>
-            <div class="og-phone-screen">
-              <div class="og-sim-hdr">
-                <div class="og-sim-mini">MY CLOSET</div>
-                <div class="og-sim-title">クローゼット</div>
-              </div>
-              <div class="og-sim-tabs">
-                <div class="og-sim-tab on">すべて</div>
-                <div class="og-sim-tab">トップス</div>
-                <div class="og-sim-tab">パンツ</div>
-              </div>
-              <div class="og-sim-body">
-                <div class="og-sim-card">
-                  <div class="og-sim-img" style="background:#f5f5f0;">👔</div>
-                  <div class="og-sim-name">白シャツ</div>
-                  <div class="og-sim-cat">トップス</div>
-                </div>
-                <div class="og-sim-card">
-                  <div class="og-sim-img" style="background:#222;">👖</div>
-                  <div class="og-sim-name">黒スキニー</div>
-                  <div class="og-sim-cat">パンツ</div>
-                </div>
-                <div class="og-sim-card">
-                  <div class="og-sim-img" style="background:#c9b99a;">🧥</div>
-                  <div class="og-sim-name">コート</div>
-                  <div class="og-sim-cat">アウター</div>
-                </div>
-                <div class="og-sim-card">
-                  <div class="og-sim-img" style="background:#efefef;">👟</div>
-                  <div class="og-sim-name">スニーカー</div>
-                  <div class="og-sim-cat">シューズ</div>
-                </div>
-              </div>
-              <div class="og-sim-bar">
-                <div class="og-sim-bar-item on"><div class="og-sim-icon">🗂️</div>クローゼット</div>
-                <div class="og-sim-bar-item"><div class="og-sim-icon">✨</div>コーデ提案</div>
-                <div class="og-sim-bar-item"><div class="og-sim-icon">⚙️</div>設定</div>
-              </div>
-            </div>
-          </div>
-          <!-- AI解析バッジ -->
-          <div class="og-ai-badge">
-            <div class="og-ai-badge-top">✦ AI ANALYSIS</div>
-            <div class="og-ai-row"><div class="og-ai-dot"></div><div class="og-ai-text">カテゴリ: トップス</div></div>
-            <div class="og-ai-row"><div class="og-ai-dot"></div><div class="og-ai-text">カラー: ネイビー</div></div>
-            <div class="og-ai-row"><div class="og-ai-dot"></div><div class="og-ai-text">季節: 秋・冬</div></div>
-          </div>
-        </div>
-      </div>
-
-    </div>
-    <div class="og-url">closet-ai.app</div>
-  </div>
-
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script>
-    async function download() {
-      const btn = document.querySelector('.dl-btn');
+  (function() {
+    const W = 1200, H = 630;
+    const BRAND   = '#1a0a2e';
+    const PURPLE  = '#8b5cf6';
+    const PURPLE2 = '#a78bfa';
+    const WHITE   = '#ffffff';
+
+    function roundRect(ctx, x, y, w, h, r, fill, stroke) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      ctx.lineTo(x + r, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+      if (fill)   { ctx.fillStyle = fill;     ctx.fill(); }
+      if (stroke) { ctx.strokeStyle = stroke; ctx.stroke(); }
+    }
+
+    function draw() {
+      const canvas = document.getElementById('c');
+      const ctx = canvas.getContext('2d');
+
+      // ── 背景グラデーション ──
+      const bg = ctx.createLinearGradient(0, 0, W, H);
+      bg.addColorStop(0,    '#1a0a2e');
+      bg.addColorStop(0.55, '#2d1054');
+      bg.addColorStop(1,    '#1e0a3c');
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, W, H);
+
+      // ── グリッドパターン ──
+      ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+      ctx.lineWidth = 1;
+      for (let x = 0; x <= W; x += 60) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+      }
+      for (let y = 0; y <= H; y += 60) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+      }
+
+      // ── 右側の光彩 ──
+      const glow = ctx.createRadialGradient(900, 315, 0, 900, 315, 400);
+      glow.addColorStop(0,   'rgba(139,92,246,0.22)');
+      glow.addColorStop(1,   'rgba(139,92,246,0)');
+      ctx.fillStyle = glow;
+      ctx.fillRect(0, 0, W, H);
+
+      // ──────────────────────────────
+      // 左：テキストエリア
+      // ──────────────────────────────
+      const LX = 80;
+
+      // バッジ
+      roundRect(ctx, LX, 80, 260, 36, 18, 'rgba(139,92,246,0.25)');
+      ctx.strokeStyle = 'rgba(139,92,246,0.5)';
+      ctx.lineWidth = 1;
+      roundRect(ctx, LX, 80, 260, 36, 18, null, 'rgba(139,92,246,0.5)');
+      ctx.fillStyle = PURPLE2;
+      ctx.font = '600 13px "Segoe UI","Yu Gothic","Meiryo",sans-serif';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('✦  AI FASHION ASSISTANT', LX + 20, 80 + 18);
+
+      // タイトル "Closet "
+      ctx.textBaseline = 'alphabetic';
+      ctx.font = 'bold 96px "Segoe UI","Yu Gothic","Meiryo",sans-serif';
+      ctx.fillStyle = WHITE;
+      ctx.fillText('Closet ', LX, 240);
+      // "AI" in purple
+      ctx.fillStyle = PURPLE2;
+      const closetW = ctx.measureText('Closet ').width;
+      ctx.fillText('AI', LX + closetW, 240);
+
+      // タグライン
+      ctx.font = '300 26px "Segoe UI","Yu Gothic","Meiryo",sans-serif';
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      ctx.fillText('毎朝の「何着よう」を、', LX, 290);
+      ctx.fillText('AIが解決する。', LX, 326);
+
+      // フィーチャー行
+      const features = [
+        '📸  服を撮るだけ — AIが自動解析',
+        '🌤️  天気×TPOでコーデを毎日提案',
+        '🗂️  スマートなクローゼット管理',
+      ];
+      ctx.font = '500 19px "Segoe UI","Yu Gothic","Meiryo",sans-serif';
+      ctx.fillStyle = 'rgba(255,255,255,0.75)';
+      features.forEach((f, i) => {
+        const fy = 390 + i * 42;
+        // ドット
+        ctx.beginPath();
+        ctx.arc(LX + 6, fy - 6, 5, 0, Math.PI * 2);
+        ctx.fillStyle = PURPLE2;
+        ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,0.75)';
+        ctx.fillText(f, LX + 22, fy);
+      });
+
+      // URL
+      ctx.font = '400 14px "Segoe UI","Yu Gothic","Meiryo",sans-serif';
+      ctx.fillStyle = 'rgba(255,255,255,0.25)';
+      ctx.fillText('closet-ai.app', LX, H - 30);
+
+      // ──────────────────────────────
+      // 右：スマホモック
+      // ──────────────────────────────
+      const PX = 760, PY = 60, PW = 210, PH = 450, PR = 36;
+
+      // 影
+      ctx.shadowColor = 'rgba(0,0,0,0.6)';
+      ctx.shadowBlur = 48;
+      ctx.shadowOffsetY = 24;
+      roundRect(ctx, PX, PY, PW, PH, PR, '#0d0618');
+      ctx.shadowColor = 'transparent';
+      ctx.shadowBlur = 0;
+      ctx.shadowOffsetY = 0;
+
+      // 枠
+      ctx.lineWidth = 2;
+      roundRect(ctx, PX, PY, PW, PH, PR, null, 'rgba(255,255,255,0.12)');
+
+      // ノッチ
+      ctx.fillStyle = '#0d0618';
+      roundRect(ctx, PX + PW/2 - 35, PY + 10, 70, 18, 9, '#0d0618');
+
+      // ── ステータスバー ──
+      ctx.fillStyle = BRAND;
+      roundRect(ctx, PX + 2, PY + 2, PW - 4, 68, PR - 2, BRAND);
+      ctx.font = '400 7px "Segoe UI","Yu Gothic","Meiryo",sans-serif';
+      ctx.fillStyle = 'rgba(255,255,255,0.4)';
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillText('MY CLOSET', PX + 12, PY + 42);
+      ctx.font = 'bold 13px "Segoe UI","Yu Gothic","Meiryo",sans-serif';
+      ctx.fillStyle = WHITE;
+      ctx.fillText('クローゼット', PX + 12, PY + 58);
+
+      // ── タブ ──
+      ctx.fillStyle = BRAND;
+      ctx.fillRect(PX + 2, PY + 70, PW - 4, 22);
+
+      const tabs = ['すべて', 'トップス', 'パンツ'];
+      let tx = PX + 10;
+      tabs.forEach((tab, i) => {
+        const tw = ctx.measureText(tab).width + 14;
+        if (i === 0) {
+          roundRect(ctx, tx, PY + 72, tw, 16, 8, WHITE);
+          ctx.font = 'bold 7px "Segoe UI","Yu Gothic","Meiryo",sans-serif';
+          ctx.fillStyle = BRAND;
+        } else {
+          roundRect(ctx, tx, PY + 72, tw, 16, 8, null, 'rgba(255,255,255,0.2)');
+          ctx.font = '400 7px "Segoe UI","Yu Gothic","Meiryo",sans-serif';
+          ctx.fillStyle = 'rgba(255,255,255,0.5)';
+        }
+        ctx.textBaseline = 'middle';
+        ctx.fillText(tab, tx + 7, PY + 80);
+        tx += tw + 6;
+      });
+
+      // ── グリッド（4枚カード）──
+      ctx.fillStyle = '#fafaf7';
+      ctx.fillRect(PX + 2, PY + 92, PW - 4, PH - 120);
+
+      const clothes = [
+        { emoji: '👔', bg: '#f5f5f0', name: '白シャツ',   cat: 'トップス' },
+        { emoji: '👖', bg: '#333',    name: '黒スキニー', cat: 'パンツ' },
+        { emoji: '🧥', bg: '#c9b99a', name: 'コート',     cat: 'アウター' },
+        { emoji: '👟', bg: '#efefef', name: 'スニーカー', cat: 'シューズ' },
+      ];
+      const COL = 2, CGAP = 6, CPX = PX + 8, CPY = PY + 98;
+      const CW = (PW - 16 - CGAP * (COL - 1)) / COL;
+
+      clothes.forEach((cl, i) => {
+        const col = i % COL, row = Math.floor(i / COL);
+        const cx = CPX + col * (CW + CGAP);
+        const cy = CPY + row * (CW + 26 + CGAP);
+        // カード
+        roundRect(ctx, cx, cy, CW, CW + 26, 8, '#fff');
+        ctx.strokeStyle = '#e8e8e0';
+        ctx.lineWidth = 0.8;
+        roundRect(ctx, cx, cy, CW, CW + 26, 8, null, '#e8e8e0');
+        // 画像背景
+        roundRect(ctx, cx + 3, cy + 3, CW - 6, CW - 6, 6, cl.bg);
+        // 絵文字
+        ctx.font = `${(CW - 14)}px serif`;
+        ctx.textBaseline = 'middle';
+        ctx.textAlign = 'center';
+        ctx.fillText(cl.emoji, cx + CW / 2, cy + CW / 2);
+        // 名前
+        ctx.font = 'bold 7px "Segoe UI","Yu Gothic","Meiryo",sans-serif';
+        ctx.fillStyle = '#1a1a1a';
+        ctx.textBaseline = 'alphabetic';
+        ctx.textAlign = 'left';
+        ctx.fillText(cl.name, cx + 4, cy + CW + 10);
+        // バッジ
+        roundRect(ctx, cx + 3, cy + CW + 14, CW - 6, 10, 4, '#f0ede8');
+        ctx.font = '400 5px "Segoe UI","Yu Gothic","Meiryo",sans-serif';
+        ctx.fillStyle = '#888';
+        ctx.textBaseline = 'middle';
+        ctx.textAlign = 'center';
+        ctx.fillText(cl.cat, cx + CW / 2, cy + CW + 19);
+      });
+      ctx.textAlign = 'left';
+
+      // ── タブバー ──
+      ctx.fillStyle = '#fafaf7';
+      ctx.fillRect(PX + 2, PY + PH - 30, PW - 4, 28);
+      ctx.strokeStyle = '#e8e8e0';
+      ctx.lineWidth = 0.5;
+      ctx.beginPath();
+      ctx.moveTo(PX + 2, PY + PH - 30);
+      ctx.lineTo(PX + PW - 2, PY + PH - 30);
+      ctx.stroke();
+
+      const barItems = [['🗂️', 'クローゼット', true], ['✨', 'コーデ提案', false], ['⚙️', '設定', false]];
+      barItems.forEach(([icon, label, active], i) => {
+        const bx = PX + 10 + i * ((PW - 20) / 3);
+        const bc = PY + PH - 26;
+        ctx.font = '11px serif';
+        ctx.textBaseline = 'alphabetic';
+        ctx.textAlign = 'center';
+        ctx.fillText(icon, bx + (PW - 20) / 6, bc + 10);
+        ctx.font = `${active ? 'bold' : '400'} 5px "Segoe UI","Yu Gothic","Meiryo",sans-serif`;
+        ctx.fillStyle = active ? BRAND : '#999';
+        ctx.fillText(label, bx + (PW - 20) / 6, bc + 22);
+      });
+      ctx.textAlign = 'left';
+
+      // ── AI解析バッジ（右下）──
+      const BX = PX + PW - 10, BY = PY + PH - 60;
+      const BW = 150, BH = 90;
+      roundRect(ctx, BX, BY, BW, BH, 14, '#ffffff');
+      ctx.shadowColor = 'rgba(0,0,0,0.2)';
+      ctx.shadowBlur = 16;
+      ctx.shadowOffsetY = 4;
+      roundRect(ctx, BX, BY, BW, BH, 14, '#ffffff');
+      ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+
+      ctx.font = '600 9px "Segoe UI","Yu Gothic","Meiryo",sans-serif';
+      ctx.fillStyle = '#999';
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillText('✦ AI ANALYSIS', BX + 12, BY + 18);
+
+      const aiRows = [
+        ['カテゴリ', 'トップス'],
+        ['カラー', 'ネイビー'],
+        ['季節', '秋・冬'],
+      ];
+      aiRows.forEach(([label, value], i) => {
+        const ry = BY + 30 + i * 20;
+        // ドット
+        ctx.beginPath();
+        ctx.arc(BX + 16, ry - 3, 4, 0, Math.PI * 2);
+        ctx.fillStyle = PURPLE;
+        ctx.fill();
+        // ラベル
+        ctx.font = '400 8px "Segoe UI","Yu Gothic","Meiryo",sans-serif';
+        ctx.fillStyle = '#999';
+        ctx.fillText(label + ':', BX + 26, ry);
+        // 値
+        ctx.font = 'bold 9px "Segoe UI","Yu Gothic","Meiryo",sans-serif';
+        ctx.fillStyle = '#1a1a1a';
+        ctx.fillText(value, BX + 26 + ctx.measureText(label + ': ').width + 10, ry);
+      });
+    }
+
+    draw();
+
+    window.downloadPng = function() {
+      const btn = document.getElementById('btn');
       btn.textContent = '生成中...';
       btn.disabled = true;
-      try {
-        const canvas = await html2canvas(document.getElementById('og'), {
-          scale: 1,
-          useCORS: true,
-          allowTaint: true,
-          backgroundColor: null,
-          logging: false,
-        });
-        const link = document.createElement('a');
-        link.download = 'og.png';
-        link.href = canvas.toDataURL('image/png');
-        link.click();
-        btn.textContent = '✓ ダウンロード完了！';
-        setTimeout(() => { btn.textContent = '⬇ og.png としてダウンロード'; btn.disabled = false; }, 3000);
-      } catch(e) {
-        btn.textContent = '⬇ og.png としてダウンロード';
+      const canvas = document.getElementById('c');
+      const link = document.createElement('a');
+      link.download = 'og.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      setTimeout(() => {
+        btn.textContent = '✓ ダウンロード完了！docs/ フォルダに入れてください';
         btn.disabled = false;
-        alert('エラーが発生しました。ブラウザで直接開いてお試しください。');
-      }
-    }
+      }, 500);
+    };
+  })();
   </script>
 </body>
 </html>
