@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>OG Image Generator — Closet AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&display=swap" rel="stylesheet">
+  <style>
+    body {
+      margin: 0; padding: 32px;
+      background: #111; display: flex;
+      flex-direction: column; align-items: center; gap: 24px;
+      font-family: 'Noto Sans JP', sans-serif;
+    }
+    .toolbar {
+      display: flex; align-items: center; gap: 16px;
+    }
+    .dl-btn {
+      background: #8b5cf6; color: #fff; border: none;
+      border-radius: 12px; padding: 14px 32px;
+      font-size: 16px; font-weight: 700; cursor: pointer;
+      font-family: 'Noto Sans JP', sans-serif;
+      transition: background 0.2s;
+    }
+    .dl-btn:hover { background: #7c3aed; }
+    .note { color: rgba(255,255,255,0.4); font-size: 13px; }
+
+    /* ── OG IMAGE: 1200 × 630 ── */
+    #og {
+      width: 1200px; height: 630px;
+      background: linear-gradient(135deg, #1a0a2e 0%, #2d1054 55%, #1e0a3c 100%);
+      position: relative; overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    /* 背景の光 */
+    #og::before {
+      content: '';
+      position: absolute; inset: 0;
+      background:
+        radial-gradient(ellipse 600px 400px at 80% 50%, rgba(139,92,246,0.22) 0%, transparent 70%),
+        radial-gradient(ellipse 300px 300px at 10% 80%, rgba(139,92,246,0.12) 0%, transparent 60%);
+    }
+
+    /* グリッドパターン */
+    #og::after {
+      content: '';
+      position: absolute; inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+      background-size: 60px 60px;
+    }
+
+    .og-inner {
+      position: relative; z-index: 1;
+      width: 100%; height: 100%;
+      display: flex; align-items: center;
+      padding: 0 80px;
+      gap: 60px;
+    }
+
+    /* 左：テキスト */
+    .og-left { flex: 1; }
+
+    .og-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(139,92,246,0.25);
+      border: 1px solid rgba(139,92,246,0.5);
+      border-radius: 24px; padding: 8px 20px;
+      font-size: 14px; color: #c4b5fd; font-weight: 600;
+      margin-bottom: 28px; letter-spacing: 1px;
+    }
+
+    .og-title {
+      font-size: 80px; font-weight: 900; color: #fff;
+      line-height: 1; letter-spacing: -2px;
+      margin-bottom: 8px;
+    }
+    .og-title span { color: #a78bfa; }
+
+    .og-tagline {
+      font-size: 26px; color: rgba(255,255,255,0.6);
+      font-weight: 400; margin-bottom: 40px;
+      line-height: 1.5;
+    }
+
+    .og-features {
+      display: flex; flex-direction: column; gap: 14px;
+    }
+    .og-feature {
+      display: flex; align-items: center; gap: 14px;
+    }
+    .og-feature-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #a78bfa; flex-shrink: 0;
+    }
+    .og-feature-text {
+      font-size: 18px; color: rgba(255,255,255,0.75); font-weight: 500;
+    }
+
+    .og-url {
+      position: absolute; bottom: 36px; left: 80px;
+      font-size: 14px; color: rgba(255,255,255,0.3);
+      letter-spacing: 0.5px;
+    }
+
+    /* 右：スマホ */
+    .og-right {
+      flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    }
+    .og-phone {
+      width: 220px; height: 440px;
+      background: #0d0618;
+      border-radius: 40px;
+      border: 2px solid rgba(255,255,255,0.12);
+      box-shadow: 0 32px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04),
+                  inset 0 0 0 1px rgba(255,255,255,0.04);
+      overflow: hidden; position: relative;
+    }
+    .og-phone-notch {
+      position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+      width: 70px; height: 18px;
+      background: #0d0618; border-radius: 10px; z-index: 10;
+    }
+    .og-phone-screen {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+    }
+    .og-sim-hdr {
+      background: #1a0a2e;
+      padding: 38px 12px 10px;
+    }
+    .og-sim-mini { font-size: 7px; color: rgba(255,255,255,0.4); letter-spacing: 1px; }
+    .og-sim-title { font-size: 14px; font-weight: 700; color: #fff; }
+    .og-sim-tabs {
+      background: #1a0a2e; padding: 6px 12px 8px;
+      display: flex; gap: 5px;
+    }
+    .og-sim-tab {
+      padding: 3px 8px; border-radius: 10px; font-size: 7px;
+      color: rgba(255,255,255,0.5); border: 1px solid rgba(255,255,255,0.15);
+    }
+    .og-sim-tab.on { background: #fff; color: #1a0a2e; font-weight: 700; }
+    .og-sim-body {
+      flex: 1; background: #fafaf7; padding: 8px;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 5px;
+      overflow: hidden;
+    }
+    .og-sim-card {
+      background: #fff; border-radius: 10px; padding: 6px;
+      border: 1px solid #e8e8e0;
+    }
+    .og-sim-img {
+      width: 100%; aspect-ratio: 1; border-radius: 7px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; margin-bottom: 4px;
+    }
+    .og-sim-name { font-size: 7px; font-weight: 700; color: #1a1a1a; }
+    .og-sim-cat {
+      display: inline-block; background: #f0ede8; border-radius: 4px;
+      padding: 1px 4px; font-size: 6px; color: #888; margin-top: 2px;
+    }
+    .og-sim-bar {
+      background: #fafaf7; border-top: 1px solid #e8e8e0;
+      display: flex; padding: 5px 4px 3px;
+    }
+    .og-sim-bar-item {
+      flex: 1; text-align: center; font-size: 6px; color: #999;
+      display: flex; flex-direction: column; align-items: center; gap: 1px;
+    }
+    .og-sim-bar-item.on { color: #1a0a2e; font-weight: 700; }
+    .og-sim-icon { font-size: 12px; }
+
+    /* AI解析バッジ（右下） */
+    .og-ai-badge {
+      position: absolute; bottom: -14px; right: -20px;
+      background: #fff; border-radius: 16px;
+      padding: 12px 16px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+      min-width: 130px;
+    }
+    .og-ai-badge-top { font-size: 10px; color: #999; margin-bottom: 6px; }
+    .og-ai-row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+    .og-ai-dot { width: 6px; height: 6px; border-radius: 50%; background: #8b5cf6; }
+    .og-ai-text { font-size: 11px; color: #1a1a1a; font-weight: 600; }
+  </style>
+</head>
+<body>
+
+  <div class="toolbar">
+    <button class="dl-btn" onclick="download()">⬇ og.png としてダウンロード</button>
+    <span class="note">クリック → docs/og.png として保存してください</span>
+  </div>
+
+  <!-- ── 1200 × 630 OG IMAGE ── -->
+  <div id="og">
+    <div class="og-inner">
+
+      <!-- 左：テキスト -->
+      <div class="og-left">
+        <div class="og-badge">✦ AI FASHION ASSISTANT</div>
+        <div class="og-title">Closet <span>AI</span></div>
+        <div class="og-tagline">
+          毎朝の「何着よう」を、<br>AIが解決する。
+        </div>
+        <div class="og-features">
+          <div class="og-feature">
+            <div class="og-feature-dot"></div>
+            <div class="og-feature-text">📸 服を撮るだけ — AIが自動解析</div>
+          </div>
+          <div class="og-feature">
+            <div class="og-feature-dot"></div>
+            <div class="og-feature-text">🌤️ 天気×TPOでコーデを毎日提案</div>
+          </div>
+          <div class="og-feature">
+            <div class="og-feature-dot"></div>
+            <div class="og-feature-text">🗂️ スマートなクローゼット管理</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 右：スマホモック -->
+      <div class="og-right">
+        <div style="position:relative;">
+          <div class="og-phone">
+            <div class="og-phone-notch"></div>
+            <div class="og-phone-screen">
+              <div class="og-sim-hdr">
+                <div class="og-sim-mini">MY CLOSET</div>
+                <div class="og-sim-title">クローゼット</div>
+              </div>
+              <div class="og-sim-tabs">
+                <div class="og-sim-tab on">すべて</div>
+                <div class="og-sim-tab">トップス</div>
+                <div class="og-sim-tab">パンツ</div>
+              </div>
+              <div class="og-sim-body">
+                <div class="og-sim-card">
+                  <div class="og-sim-img" style="background:#f5f5f0;">👔</div>
+                  <div class="og-sim-name">白シャツ</div>
+                  <div class="og-sim-cat">トップス</div>
+                </div>
+                <div class="og-sim-card">
+                  <div class="og-sim-img" style="background:#222;">👖</div>
+                  <div class="og-sim-name">黒スキニー</div>
+                  <div class="og-sim-cat">パンツ</div>
+                </div>
+                <div class="og-sim-card">
+                  <div class="og-sim-img" style="background:#c9b99a;">🧥</div>
+                  <div class="og-sim-name">コート</div>
+                  <div class="og-sim-cat">アウター</div>
+                </div>
+                <div class="og-sim-card">
+                  <div class="og-sim-img" style="background:#efefef;">👟</div>
+                  <div class="og-sim-name">スニーカー</div>
+                  <div class="og-sim-cat">シューズ</div>
+                </div>
+              </div>
+              <div class="og-sim-bar">
+                <div class="og-sim-bar-item on"><div class="og-sim-icon">🗂️</div>クローゼット</div>
+                <div class="og-sim-bar-item"><div class="og-sim-icon">✨</div>コーデ提案</div>
+                <div class="og-sim-bar-item"><div class="og-sim-icon">⚙️</div>設定</div>
+              </div>
+            </div>
+          </div>
+          <!-- AI解析バッジ -->
+          <div class="og-ai-badge">
+            <div class="og-ai-badge-top">✦ AI ANALYSIS</div>
+            <div class="og-ai-row"><div class="og-ai-dot"></div><div class="og-ai-text">カテゴリ: トップス</div></div>
+            <div class="og-ai-row"><div class="og-ai-dot"></div><div class="og-ai-text">カラー: ネイビー</div></div>
+            <div class="og-ai-row"><div class="og-ai-dot"></div><div class="og-ai-text">季節: 秋・冬</div></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <div class="og-url">closet-ai.app</div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script>
+    async function download() {
+      const btn = document.querySelector('.dl-btn');
+      btn.textContent = '生成中...';
+      btn.disabled = true;
+      try {
+        const canvas = await html2canvas(document.getElementById('og'), {
+          scale: 1,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: null,
+          logging: false,
+        });
+        const link = document.createElement('a');
+        link.download = 'og.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+        btn.textContent = '✓ ダウンロード完了！';
+        setTimeout(() => { btn.textContent = '⬇ og.png としてダウンロード'; btn.disabled = false; }, 3000);
+      } catch(e) {
+        btn.textContent = '⬇ og.png としてダウンロード';
+        btn.disabled = false;
+        alert('エラーが発生しました。ブラウザで直接開いてお試しください。');
+      }
+    }
+  </script>
+</body>
+</html>
